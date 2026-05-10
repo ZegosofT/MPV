@@ -1,0 +1,6 @@
+start=931.515000
+volume=98.000000
+af=format=channels=%3%7.1,lavfi=graph=surround,lavfi=graph=%8%bass=g=3
+panscan=0.300000
+sid=1
+sub-delay=0.700000

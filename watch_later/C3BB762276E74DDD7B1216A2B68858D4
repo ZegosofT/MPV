@@ -1,0 +1,4 @@
+start=849.316667
+af=format=channels=%3%7.1,lavfi=graph=surround,lavfi=graph=%8%bass=g=3
+ab-loop-a=843.966667
+ab-loop-b=853.883333
