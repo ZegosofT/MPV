@@ -25,15 +25,15 @@ local categories = {
     {
         label = "OP",
         keywords = {
-            "opening", " op ", "^op$", "op%d", "theme song", "main theme",
-            "オープニング", "オープニングテーマ", "OPテーマ", "主題歌",
+            "opening", " op ", "^op$", "op%d", "theme song", "main theme", "Chapter 02",
+            "オープニング", "オープニングテーマ", "OPテーマ", "主題歌", 
             "ncop", "creditless op", "creditless opening"
         }
     },
     {
         label = "ED",
         keywords = {
-            "ending", " ed ", "^ed$", "ed%d", "credits", "outro", "end roll",
+            "ending", " ed ", "^ed$", "ed%d", "credits", "outro", "end roll", "Chapter 06",
             "エンディング", "エンディングテーマ", "EDテーマ", "結び",
             "nced", "creditless ed", "creditless ending"
         }
