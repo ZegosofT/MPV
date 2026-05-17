@@ -33,7 +33,7 @@ local categories = {
     {
         label = "ED",
         keywords = {
-            "ending", " ed ", "^ed$", "ed%d", "credits", "outro", "end roll", "Chapter 06",
+            "ending", " ed ", "^ed$", "ed%d", "credits", "outro", "end roll", "Chapter 06", "Chapter 7",
             "エンディング", "エンディングテーマ", "EDテーマ", "結び",
             "nced", "creditless ed", "creditless ending"
         }
