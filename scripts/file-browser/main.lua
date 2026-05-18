@@ -56,7 +56,7 @@ mp.register_script_message("get-directory-contents", script_messages.get_directo
 
 --declares the keybind to open the browser
 mp.add_key_binding('MENU','browse-files', controls.toggle)
-mp.add_key_binding('Ctrl+f','open-browser', controls.open)
+mp.add_key_binding(nil,'open-browser', controls.open)
 
 if input_loaded then
     mp.add_key_binding("Alt+o", "browse-directory/get-user-input", function()

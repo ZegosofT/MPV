@@ -226,8 +226,8 @@ function Volume:update_dimensions()
 	local max_y = Elements:v('controls', 'ay') or Elements:v('timeline', 'ay')
 		or display.height - Elements:v('window_border', 'size', 0)
 	local available_height = max_y - min_y
-	local max_height = available_height * 0.8
-	local height = round(math.min(self.size * 8, max_height))
+	local max_height = available_height * 0.6
+	local height = round(max_height)
 	self.enabled = height > self.size * 2 -- don't render if too small
 	local margin = (self.size / 2) + Elements:v('window_border', 'size', 0)
 	self.ax = round(options.volume == 'left' and margin or display.width - margin - self.size)
