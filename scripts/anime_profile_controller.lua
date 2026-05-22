@@ -1183,14 +1183,14 @@ local function apply_custom_profile(name)
         sd_manual_override = false
         hd_manual_override = false
         tier.quality = "hq"
-        tier.mode = "BB"
+        tier.mode = "AA"
         save_anime4k()
         save_anime_mode()
         ensure_vsr(false)
         force_refresh_video_pipeline()
     elseif name == "Anime 720P" then
         anime_mode = "on"
-        anime_fidelity = true
+        anime_fidelity = false
         manual_normal_profile = nil
         current_custom_preset = name
         sharpen_enabled = true
@@ -1204,14 +1204,14 @@ local function apply_custom_profile(name)
         force_refresh_video_pipeline()
     elseif name == "Anime Legacy" then
         anime_mode = "on"
-        anime_fidelity = true
+        anime_fidelity = false
         manual_normal_profile = nil
         current_custom_preset = name
         sharpen_enabled = true
         sd_manual_override = false
         hd_manual_override = false
         tier.quality = "hq"
-        tier.mode = "CA"
+        tier.mode = "C"
         save_anime4k()
         save_anime_mode()
         ensure_vsr(false)

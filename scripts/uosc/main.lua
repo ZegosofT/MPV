@@ -1048,21 +1048,10 @@ function create_default_menu_items()
 
 
         {
-			title = 'Zego Profile Options',
-			icon = 'dashboard_customize',
-			items = {
-				{
-					title = 'Already Made Ones',
-					icon = 'dashboard_customize',
-					value = 'script-binding anime_profile_controller/open-zego-menu',
-				},
-				{
-					title = 'Custom Ones',
-					icon = 'auto_awesome',
-					value = 'script-binding anime_profile_controller/open-zego-custom-menu',
-				},
-			},
-		},
+            title = 'Binds',
+            icon = 'keyboard',
+            value = 'run cmd /c start "" "C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/input.conf"',
+        },
 
         {
             title = 'Skip Options',
@@ -1083,6 +1072,17 @@ function create_default_menu_items()
                     value = 'script-message-to skip_intro skip-toggle-ending',
                     active = get_anime_state("skip_target_ending") ~= false,
                     hint = 'Also controls Preview',
+                },
+                {
+                    title = 'Edit Chapter Overrides',
+                    icon = 'edit',
+                    value = 'run cmd /c start "" "C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/script-opts/skip_intro.conf"',
+                },
+                {
+                    title = 'Reload Overrides',
+                    icon = 'refresh',
+                    value = 'script-message reload-skip-intro',
+                    hint = 'Apply edits without restart',
                 },
             },
         },

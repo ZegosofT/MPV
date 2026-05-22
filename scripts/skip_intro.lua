@@ -138,6 +138,7 @@ local function stop_countdown()
     end
     state.countdown_active = false
     mp.remove_key_binding("skip-intro-cancel-countdown")
+    mp.remove_key_binding("skip-intro-instant-skip")
 end
 
 local function reset_runtime_state()
@@ -204,6 +205,7 @@ local function start_countdown(label, chapter_idx)
     local remaining = opts.countdown
 
     mp.add_forced_key_binding(opts.skip_key, "skip-intro-cancel-countdown", cancel_current_countdown)
+    mp.add_forced_key_binding("SPACE", "skip-intro-instant-skip", skip_action)
 
     local function tick()
         if not state.countdown_active then return end
