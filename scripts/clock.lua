@@ -1,18 +1,31 @@
--- Toggle a small on-screen clock (HH:MM, 24h) in the top-right corner.
--- Press the bound key once to show, again to hide.
--- Time auto-refreshes every 10 seconds, so the minute change is visible
--- within ~10s without spamming the OSD.
+-- On-screen clock (HH:MM, 24h) in the bottom-right corner.
+--
+-- Two independent bindings, pick whichever you want in input.conf:
+--   script-binding clock/flash   -> show for FLASH_DURATION seconds, auto-hide.
+--                                   Pressing again while visible restarts timer.
+--   script-binding clock/toggle  -> press to show indefinitely, press again to hide.
+--                                   Auto-refreshes the time every TICK_INTERVAL sec.
+--
+-- You can even bind both to different keys if you want both behaviours.
 
 local mp = require 'mp'
+
+-- =====================================================
+--  CONFIG
+-- =====================================================
+local FLASH_DURATION = 2    -- seconds (flash mode)
+local TICK_INTERVAL  = 10   -- seconds between refreshes (toggle mode)
+-- =====================================================
 
 local overlay = mp.create_osd_overlay("ass-events")
 overlay.res_x = 1920
 overlay.res_y = 1080
-local timer = nil
-local visible = false
+
+local hide_timer = nil
+local tick_timer = nil
+local visible    = false
 
 local function render()
-    if not visible then return end
     local now = os.date("%H:%M")
     overlay.data =
         "{\\an3}{\\pos(1900,1050)}" ..
@@ -23,24 +36,38 @@ local function render()
     overlay:update()
 end
 
-local function show()
-    visible = true
-    render()
-    if timer then timer:kill() end
-    timer = mp.add_periodic_timer(10, render)
+local function kill(t)
+    if t then t:kill() end
+    return nil
 end
 
 local function hide()
-    visible = false
+    visible    = false
+    hide_timer = kill(hide_timer)
+    tick_timer = kill(tick_timer)
     overlay:remove()
-    if timer then
-        timer:kill()
-        timer = nil
+end
+
+-- Flash: show, schedule auto-hide. Cancels any active toggle session.
+local function flash()
+    visible    = true
+    tick_timer = kill(tick_timer)
+    render()
+    hide_timer = kill(hide_timer)
+    hide_timer = mp.add_timeout(FLASH_DURATION, hide)
+end
+
+-- Toggle: persistent show with periodic refresh, second press hides.
+local function toggle()
+    if visible then
+        hide()
+    else
+        visible    = true
+        hide_timer = kill(hide_timer)
+        render()
+        tick_timer = mp.add_periodic_timer(TICK_INTERVAL, render)
     end
 end
 
-local function toggle()
-    if visible then hide() else show() end
-end
-
+mp.add_key_binding(nil, "flash",  flash)
 mp.add_key_binding(nil, "toggle", toggle)
