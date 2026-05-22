@@ -1,8 +1,13 @@
--- [[ 
+-- [[
 --    FILENAME: skip_intro.lua
---    VERSION:  v2.5
---    AUTHOR:   mpv-anime-build + custom edit
---    DESC:     OP/ED/PV/Intro detection with countdown auto-skip, cancel and per-type toggles.
+--    VERSION:  v3.0 (Config-driven, exact-match)
+--    DESC:     OP/ED/PV/Intro detection is now driven entirely by
+--              script-opts/skip_intro.conf. Only chapters whose titles are
+--              listed in the conf (or whose 1-based chapter number is
+--              listed) get categorised and skipped.
+--
+--              Matching is case-insensitive and whitespace-tolerant.
+--              No hardcoded keyword list — the conf is the single source.
 -- ]]
 
 local mp = require("mp")
@@ -11,8 +16,9 @@ local utils = require("mp.utils")
 local opts = {
     enabled = true,
     auto_skip = true,
-    skip_key = "ENTER",
-    toggle_key = "Ctrl+ENTER",
+    instant_skip_key = "ENTER",   -- press during countdown to skip immediately
+    cancel_key       = "BS",      -- press during countdown to cancel the skip
+    toggle_key       = "Ctrl+ENTER",
     timeout = 6,
     countdown = 5,
 
@@ -21,38 +27,12 @@ local opts = {
     skip_ending = true, -- also controls Preview/PV
 }
 
-local categories = {
-    {
-        label = "OP",
-        keywords = {
-            "opening", " op ", "^op$", "op%d", "theme song", "main theme", "Chapter 02",
-            "オープニング", "オープニングテーマ", "OPテーマ", "主題歌", 
-            "ncop", "creditless op", "creditless opening"
-        }
-    },
-    {
-        label = "ED",
-        keywords = {
-            "ending", " ed ", "^ed$", "ed%d", "credits", "outro", "end roll", "Chapter 06", "Chapter 7",
-            "エンディング", "エンディングテーマ", "EDテーマ", "結び",
-            "nced", "creditless ed", "creditless ending"
-        }
-    },
-    {
-        label = "PV",
-        keywords = {
-            "preview", " pv ", "^pv$", "pv%d", "trailer", "next episode",
-            "予告", "次回予告", "特報", "プロモーション",
-            "jikai", "yokoku"
-        }
-    },
-    {
-        label = "Intro",
-        keywords = {
-            "intro", "introduction", "cold open",
-            "アバン", "アバンタイトル", "序章", "前説"
-        }
-    }
+-- Conf key -> label mapping.
+local CATEGORY_TO_LABEL = {
+    opening = "OP",
+    intro   = "Intro",
+    ending  = "ED",
+    preview = "PV",
 }
 
 local label_colors = {
@@ -73,37 +53,78 @@ local state = {
     active_chapter_idx = nil
 }
 
+-- Conf-loaded maps (rebuilt every load_manual_overrides()).
+local manual_title_labels   = {} -- normalized_title  -> label
+local manual_chapter_labels = {} -- chapter_index (1) -> label
+
+local function normalize_title(t)
+    if not t then return "" end
+    return (t:match("^%s*(.-)%s*$") or ""):lower()
+end
+
+local function load_manual_overrides()
+    manual_title_labels   = {}
+    manual_chapter_labels = {}
+
+    local conf_path = mp.command_native({"expand-path", "~~/script-opts/skip_intro.conf"})
+    local f = io.open(conf_path, "r")
+    if not f then return end
+
+    for line in f:lines() do
+        if not line:match("^%s*#") and not line:match("^%s*$") then
+            local key, value = line:match("^%s*([%w_]+)%s*=%s*(.*)$")
+            if key and value then
+                local label = CATEGORY_TO_LABEL[key:lower()]
+                if label then
+                    -- Quoted titles
+                    for title in value:gmatch('"([^"]*)"') do
+                        local norm = normalize_title(title)
+                        if norm ~= "" then
+                            manual_title_labels[norm] = label
+                            -- "Chapter N" / "Ch N" also implies chapter index N,
+                            -- useful when the file has no real chapter titles.
+                            local num = norm:match("^chapter%s*(%d+)$")
+                                     or norm:match("^ch%s*(%d+)$")
+                            if num then
+                                manual_chapter_labels[tonumber(num)] = label
+                            end
+                        end
+                    end
+                    -- Bare numbers anywhere = chapter indices
+                    local stripped = value:gsub('"[^"]*"', '')
+                    for n in stripped:gmatch('(%d+)') do
+                        manual_chapter_labels[tonumber(n)] = label
+                    end
+                end
+            end
+        end
+    end
+    f:close()
+end
+
 local function broadcast_skip_state()
     mp.commandv("script-message", "anime-state-broadcast", utils.format_json({
-        skip_target_intro = opts.skip_intro,
+        skip_target_intro   = opts.skip_intro,
         skip_target_opening = opts.skip_opening,
-        skip_target_ending = opts.skip_ending,
+        skip_target_ending  = opts.skip_ending,
     }))
 end
 
 local function label_enabled(label)
-    if label == "Intro" then
-        return opts.skip_intro
-    elseif label == "OP" then
-        return opts.skip_opening
-    elseif label == "ED" or label == "PV" then
-        return opts.skip_ending
+    if     label == "Intro"               then return opts.skip_intro
+    elseif label == "OP"                  then return opts.skip_opening
+    elseif label == "ED" or label == "PV" then return opts.skip_ending
     end
     return false
 end
 
-local function get_chapter_label(title)
-    if not title then return nil end
-    local title_lower = title:lower()
-    for _, category in ipairs(categories) do
-        for _, keyword in ipairs(category.keywords) do
-            if title_lower:find(keyword) or title:find(keyword) then
-                if label_enabled(category.label) then
-                    return category.label
-                end
-                return nil
-            end
-        end
+-- Returns the label for this chapter, or nil. Driven only by conf.
+local function get_chapter_label(idx, title)
+    local lab = manual_chapter_labels[idx]
+    if lab and label_enabled(lab) then return lab end
+    if title then
+        lab = manual_title_labels[normalize_title(title)]
+        if lab and label_enabled(lab) then return lab end
     end
     return nil
 end
@@ -112,9 +133,7 @@ local function paint_canvas(ass_text)
     mp.set_osd_ass(1920, 1080, ass_text or "")
 end
 
-local function clear_osd()
-    paint_canvas("")
-end
+local function clear_osd() paint_canvas("") end
 
 local function stop_clear_timer()
     if state.clear_timer then
@@ -161,7 +180,8 @@ local function draw_countdown(label, remaining)
     ass = ass .. "{\\1c&H" .. color .. "&}▶ "
     ass = ass .. "{\\1c&HFFFFFF&}" .. display_label .. " IN "
     ass = ass .. "{\\1c&H" .. color .. "&}" .. tostring(remaining)
-    ass = ass .. "{\\1c&HFFFFFF&}  [ENTER = CANCEL]"
+    ass = ass .. "   {\\1c&H00FF00&}ENTER{\\1c&HFFFFFF&} skip"
+    ass = ass .. "   {\\1c&H0000FF&}BS{\\1c&HFFFFFF&} cancel"
     paint_canvas(ass)
 end
 
@@ -197,30 +217,22 @@ local function start_countdown(label, chapter_idx)
     stop_countdown()
     stop_clear_timer()
 
-    state.countdown_active = true
-    state.active_label = label
-    state.active_chapter_idx = chapter_idx
+    state.countdown_active     = true
+    state.active_label         = label
+    state.active_chapter_idx   = chapter_idx
     state.cancelled_chapters[chapter_idx] = nil
 
     local remaining = opts.countdown
 
-    mp.add_forced_key_binding(opts.skip_key, "skip-intro-cancel-countdown", cancel_current_countdown)
-    mp.add_forced_key_binding("SPACE", "skip-intro-instant-skip", skip_action)
+    mp.add_forced_key_binding(opts.cancel_key,       "skip-intro-cancel-countdown", cancel_current_countdown)
+    mp.add_forced_key_binding(opts.instant_skip_key, "skip-intro-instant-skip",     skip_action)
 
     local function tick()
         if not state.countdown_active then return end
-
         if state.active_chapter_idx ~= chapter_idx then
-            stop_countdown()
-            clear_osd()
-            return
+            stop_countdown(); clear_osd(); return
         end
-
-        if remaining <= 0 then
-            skip_action()
-            return
-        end
-
+        if remaining <= 0 then skip_action(); return end
         draw_countdown(label, remaining)
         remaining = remaining - 1
         state.countdown_timer = mp.add_timeout(1.0, tick)
@@ -239,18 +251,16 @@ local function find_current_target()
     for i, ch in ipairs(chapters) do
         local next_ch = chapters[i + 1]
         if pos >= ch.time and (not next_ch or pos < next_ch.time) then
-            local label = get_chapter_label(ch.title)
-            if label then
-                return i, label
-            end
+            local label = get_chapter_label(i, ch.title)
+            if label then return i, label end
             return i, nil
         end
     end
-
     return nil, nil
 end
 
 local function update_chapter_cache()
+    load_manual_overrides()
     state.cached_chapters = mp.get_property_native("chapter-list")
     reset_runtime_state()
     broadcast_skip_state()
@@ -263,10 +273,7 @@ end
 
 local function on_tick()
     if not opts.enabled then
-        if state.countdown_active then
-            stop_countdown()
-            clear_osd()
-        end
+        if state.countdown_active then stop_countdown(); clear_osd() end
         return
     end
 
@@ -277,8 +284,7 @@ local function on_tick()
             state.current_chapter_idx = -1
             state.active_label = nil
             state.active_chapter_idx = nil
-            stop_countdown()
-            clear_osd()
+            stop_countdown(); clear_osd()
         end
         return
     end
@@ -288,8 +294,7 @@ local function on_tick()
         state.active_label = label
         state.active_chapter_idx = current_idx
 
-        stop_countdown()
-        clear_osd()
+        stop_countdown(); clear_osd()
 
         if opts.auto_skip and not state.cancelled_chapters[current_idx] then
             start_countdown(label, current_idx)
@@ -299,42 +304,40 @@ end
 
 mp.register_script_message("toggle-state", function(val)
     opts.enabled = (val == "true")
-    if not opts.enabled then
-        reset_runtime_state()
-    end
+    if not opts.enabled then reset_runtime_state() end
     broadcast_skip_state()
 end)
 
 mp.register_script_message("skip-toggle-intro", function()
     opts.skip_intro = not opts.skip_intro
-    reset_runtime_state()
-    broadcast_skip_state()
+    reset_runtime_state(); broadcast_skip_state()
     mp.osd_message("Skip Intro: " .. (opts.skip_intro and "ON" or "OFF"), 2)
 end)
 
 mp.register_script_message("skip-toggle-opening", function()
     opts.skip_opening = not opts.skip_opening
-    reset_runtime_state()
-    broadcast_skip_state()
+    reset_runtime_state(); broadcast_skip_state()
     mp.osd_message("Skip Opening: " .. (opts.skip_opening and "ON" or "OFF"), 2)
 end)
 
 mp.register_script_message("skip-toggle-ending", function()
     opts.skip_ending = not opts.skip_ending
-    reset_runtime_state()
-    broadcast_skip_state()
+    reset_runtime_state(); broadcast_skip_state()
     mp.osd_message("Skip Ending/Preview: " .. (opts.skip_ending and "ON" or "OFF"), 2)
+end)
+
+mp.register_script_message("reload-skip-intro", function()
+    load_manual_overrides()
+    reset_runtime_state()
+    mp.osd_message("Skip Intro: chapter overrides reloaded", 2)
 end)
 
 mp.add_forced_key_binding(opts.toggle_key, "toggle-auto-skip-op-ed", toggle_auto_skip)
 
 mp.register_event("file-loaded", update_chapter_cache)
-mp.register_event("end-file", reset_runtime_state)
+mp.register_event("end-file",    reset_runtime_state)
 mp.observe_property("chapter", "native", function()
-    if state.countdown_active then
-        stop_countdown()
-        clear_osd()
-    end
+    if state.countdown_active then stop_countdown(); clear_osd() end
 end)
 
 mp.add_periodic_timer(0.2, on_tick)
