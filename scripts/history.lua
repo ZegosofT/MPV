@@ -13,6 +13,7 @@ local utils  = require 'mp.utils'
 -- ====== CONFIG ======
 local MAX_ENTRIES   = 50    -- maximum stored entries (oldest get dropped)
 local MIN_DURATION  = 5     -- ignore files that played for less than this many seconds
+local AUTO_RESUME   = true  -- auto-open most recent file when mpv launches with no file
 -- ====================
 
 local HISTORY_PATH = mp.command_native({"expand-path", "~~/history.json"})
@@ -166,3 +167,18 @@ mp.add_key_binding(nil, "clear", function()
 end)
 
 load_history()
+
+-- Auto-resume the most recent file when mpv launches with no file argument.
+-- We watch the idle-active property and fire ONCE the first time mpv reaches
+-- the idle state. The `resumed` flag prevents re-firing when later files end.
+if AUTO_RESUME then
+    local resumed = false
+    mp.observe_property("idle-active", "bool", function(_, active)
+        if active and not resumed and #history > 0 then
+            resumed = true
+            local last = history[1]
+            mp.osd_message("Resuming: " .. last.title, 3)
+            mp.commandv("loadfile", last.path)
+        end
+    end)
+end
