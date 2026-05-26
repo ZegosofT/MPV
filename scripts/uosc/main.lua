@@ -1054,6 +1054,12 @@ function create_default_menu_items()
         },
 
         {
+            title = 'History',
+            icon = 'history',
+            value = 'script-binding history/menu',
+        },
+
+        {
             title = 'Skip Options',
             icon = 'fast_forward',
             items = {
