@@ -1216,7 +1216,7 @@ local function apply_custom_profile(name)
         save_anime_mode()
         ensure_vsr(false)
         force_refresh_video_pipeline()
-    elseif name == "Live-Action 1440P+" then
+    elseif name == "Movie 1440P+" then
         anime_mode = "off"
         anime_fidelity = true
         current_custom_preset = name
@@ -1227,7 +1227,7 @@ local function apply_custom_profile(name)
         ensure_vsr(false)
         save_anime_mode()
         force_refresh_video_pipeline()
-    elseif name == "Live-Action 1080P" then
+    elseif name == "Movie 1080P" then
         anime_mode = "off"
         anime_fidelity = true
         current_custom_preset = name
@@ -1238,7 +1238,7 @@ local function apply_custom_profile(name)
         ensure_vsr(false)
         save_anime_mode()
         force_refresh_video_pipeline()
-    elseif name == "Live-Action 720P" then
+    elseif name == "Movie 720P" then
         anime_mode = "off"
         anime_fidelity = true
         current_custom_preset = name
@@ -1247,6 +1247,17 @@ local function apply_custom_profile(name)
         sd_manual_override = true
         hd_manual_override = false
         ensure_vsr(true)
+        save_anime_mode()
+        force_refresh_video_pipeline()
+    elseif name == "Gaming" then
+        anime_mode = "off"
+        anime_fidelity = true
+        current_custom_preset = name
+        manual_normal_profile = "Gaming"
+        sharpen_enabled = false   -- games are already sharp, no adaptive-sharpen
+        sd_manual_override = false
+        hd_manual_override = false
+        ensure_vsr(false)
         save_anime_mode()
         force_refresh_video_pipeline()
     else
@@ -1431,9 +1442,10 @@ local function get_zego_menu_json()
         { title = "🎌 Anime 1080P", value = "script-binding zego-custom-anime-1080p", active = (current_custom_preset == "Anime 1080P") },
         { title = "🎌 Anime 720P", value = "script-binding zego-custom-anime-720p", active = (current_custom_preset == "Anime 720P") },
         { title = "🎌 Anime Legacy", value = "script-binding zego-custom-anime-legacy", active = (current_custom_preset == "Anime Legacy") },
-        { title = "🎥 Live-Action 1440P+", value = "script-binding zego-custom-live-1440p", active = (current_custom_preset == "Live-Action 1440P+") },
-        { title = "🎥 Live-Action 1080P", value = "script-binding zego-custom-live-1080p", active = (current_custom_preset == "Live-Action 1080P") },
-        { title = "🎥 Live-Action 720P", value = "script-binding zego-custom-live-720p", active = (current_custom_preset == "Live-Action 720P") },
+        { title = "🎥 Movie 1440P+", value = "script-binding zego-custom-live-1440p", active = (current_custom_preset == "Movie 1440P+") },
+        { title = "🎥 Movie 1080P", value = "script-binding zego-custom-live-1080p", active = (current_custom_preset == "Movie 1080P") },
+        { title = "🎥 Movie 720P", value = "script-binding zego-custom-live-720p", active = (current_custom_preset == "Movie 720P") },
+        { title = "🎮 Gaming", value = "script-binding zego-custom-gaming", active = (current_custom_preset == "Gaming") },
         { title = "⏹ Off", value = "script-binding zego-custom-off", active = (current_custom_preset == "Off") or (current_custom_preset == nil) },
         {
             title = "🌈 HDR Toggle",
@@ -1465,9 +1477,10 @@ local function get_zego_custom_menu_json()
         { title = "🎌 Anime 1080P", value = "script-binding zego-custom-anime-1080p", active = (current_custom_preset == "Anime 1080P") },
         { title = "🎌 Anime 720P", value = "script-binding zego-custom-anime-720p", active = (current_custom_preset == "Anime 720P") },
         { title = "🎌 Anime Legacy", value = "script-binding zego-custom-anime-legacy", active = (current_custom_preset == "Anime Legacy") },
-        { title = "🎥 Live-Action 1440P+", value = "script-binding zego-custom-live-1440p", active = (current_custom_preset == "Live-Action 1440P+") },
-        { title = "🎥 Live-Action 1080P", value = "script-binding zego-custom-live-1080p", active = (current_custom_preset == "Live-Action 1080P") },
-        { title = "🎥 Live-Action 720P", value = "script-binding zego-custom-live-720p", active = (current_custom_preset == "Live-Action 720P") },
+        { title = "🎥 Movie 1440P+", value = "script-binding zego-custom-live-1440p", active = (current_custom_preset == "Movie 1440P+") },
+        { title = "🎥 Movie 1080P", value = "script-binding zego-custom-live-1080p", active = (current_custom_preset == "Movie 1080P") },
+        { title = "🎥 Movie 720P", value = "script-binding zego-custom-live-720p", active = (current_custom_preset == "Movie 720P") },
+        { title = "🎮 Gaming", value = "script-binding zego-custom-gaming", active = (current_custom_preset == "Gaming") },
         { title = "⏹ Off", value = "script-binding zego-custom-off", active = (current_custom_preset == "Off") or (current_custom_preset == nil) },
         {
             title = "🌈 HDR Toggle",
@@ -1535,9 +1548,10 @@ mp.add_key_binding(nil, "zego-custom-anime-1440p", function() apply_custom_profi
 mp.add_key_binding(nil, "zego-custom-anime-1080p", function() apply_custom_profile("Anime 1080P") end)
 mp.add_key_binding(nil, "zego-custom-anime-720p", function() apply_custom_profile("Anime 720P") end)
 mp.add_key_binding(nil, "zego-custom-anime-legacy", function() apply_custom_profile("Anime Legacy") end)
-mp.add_key_binding(nil, "zego-custom-live-1440p", function() apply_custom_profile("Live-Action 1440P+") end)
-mp.add_key_binding(nil, "zego-custom-live-1080p", function() apply_custom_profile("Live-Action 1080P") end)
-mp.add_key_binding(nil, "zego-custom-live-720p", function() apply_custom_profile("Live-Action 720P") end)
+mp.add_key_binding(nil, "zego-custom-live-1440p", function() apply_custom_profile("Movie 1440P+") end)
+mp.add_key_binding(nil, "zego-custom-live-1080p", function() apply_custom_profile("Movie 1080P") end)
+mp.add_key_binding(nil, "zego-custom-live-720p", function() apply_custom_profile("Movie 720P") end)
+mp.add_key_binding(nil, "zego-custom-gaming", function() apply_custom_profile("Gaming") end)
 mp.add_key_binding(nil, "zego-custom-off", function() apply_custom_profile("Off") end)
 
 mp.add_key_binding(nil, "zego-hdr-auto", function() set_hdr_toggle_mode("auto", false); update_uosc_menu() end)
@@ -1751,7 +1765,7 @@ mp.register_script_message("toggle-hq-sd", function()
         return
     end
     if not current_profile or not string.find(current_profile, "HQ%-SD") then 
-        show_temp_osd(C.RED .. "Locked: " .. C.WHITE .. "Only for SD (Live-Action).", 2)
+        show_temp_osd(C.RED .. "Locked: " .. C.WHITE .. "Only for SD (Movie).", 2)
         return 
     end
     sd_mode = (sd_mode == "clean") and "texture" or "clean"
@@ -1769,10 +1783,10 @@ mp.register_script_message("toggle-hq-hd-nnedi", function()
     if not shaders_master_switch then show_temp_osd(profile_message(), 2) return end
     local res = get_resolution_mode()
     if current_profile == "anime-shaders" then 
-		show_temp_osd(C.RED .. "Locked: " .. C.WHITE .. "only for SD & HD (Live-Action).", 2)
+		show_temp_osd(C.RED .. "Locked: " .. C.WHITE .. "only for SD & HD (Movie).", 2)
 		return end
     if res == "FHD" or res == "2K" or res == "4K" then 
-        show_temp_osd(C.RED .. "Locked: " .. C.WHITE .. "only for SD & HD (Live-Action).", 2)
+        show_temp_osd(C.RED .. "Locked: " .. C.WHITE .. "only for SD & HD (Movie).", 2)
         return 
     end
     local mode_name, mode_color = "", ""
