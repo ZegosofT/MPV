@@ -1495,7 +1495,7 @@ local function get_zego_custom_menu_json()
 
     return utils.format_json({
         type = "menu",
-        title = "Custom Ones",
+        title = "Zego Presets",
         items = custom_items
     })
 end

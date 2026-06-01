@@ -171,7 +171,7 @@ load_history()
 -- Auto-resume the most recent file when mpv launches with no file argument.
 -- We watch the idle-active property and fire ONCE the first time mpv reaches
 -- the idle state. The `resumed` flag prevents re-firing when later files end.
-if AUTO_RESUME then
+if AUTO_RESUME and not mp.get_property_bool("options/input-test") then
     local resumed = false
     mp.observe_property("idle-active", "bool", function(_, active)
         if active and not resumed and #history > 0 then

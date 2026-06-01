@@ -446,7 +446,19 @@ function create_controls_menu()
         }
     end
 
-    return {
+    -- Synchronization submenu — built here (uses the create_adjust_menu local)
+    -- but returned separately so it can live in the root "Now Playing" menu.
+    local sync_menu = {
+        title = 'Synchronization',
+        id = 'sync_root',
+        items = {
+            create_adjust_menu('Audio Delay', 'audio-delay', 0.1, 0, 's', 'audio_delay_menu'),
+            create_adjust_menu('Subtitle Delay', 'sub-delay', 0.1, 0, 's', 'sub_delay_menu'),
+            create_adjust_menu('Subtitle Pos', 'sub-pos', 1, 100, '%', 'sub_pos_menu'),
+        }
+    }
+
+    local controls = {
         title = 'Controls',
         id = 'controls_root',
         items = {
@@ -483,16 +495,7 @@ function create_controls_menu()
                 }
             },
 			
-            -- 2. SYNC & COLORS
-            {
-                title = 'Synchronization',
-                id = 'sync_root',
-                items = {
-                    create_adjust_menu('Audio Delay', 'audio-delay', 0.1, 0, 's', 'audio_delay_menu'),
-                    create_adjust_menu('Subtitle Delay', 'sub-delay', 0.1, 0, 's', 'sub_delay_menu'),
-                    create_adjust_menu('Subtitle Pos', 'sub-pos', 1, 100, '%', 'sub_pos_menu'),
-                }
-            },
+            -- 2. COLORS (Synchronization moved to root "Now Playing")
             {
                 title = 'Video Colors',
                 id = 'color_root',
@@ -699,6 +702,8 @@ function create_controls_menu()
             },
         }
     }
+
+    return controls, sync_menu
 end
 
 -- [PHASE 1: BUTTON BINDING]
@@ -711,8 +716,8 @@ end)
 
 -- [PHASE 6: MAIN MENU (WITH CHECKMARKS & SHADER TOGGLE)]
 function create_default_menu_items()
-    -- Generate dynamic controls
-    local controls_data = create_controls_menu()
+    -- Generate dynamic controls (+ the Synchronization submenu, placed in Now Playing)
+    local controls_data, sync_data = create_controls_menu()
     
     -- [HELPER] Read Shared State from JSON Cache (Restores Checkmarks)
     -- This uses the global get_anime_state function defined at the bottom of main.lua
@@ -806,26 +811,47 @@ function create_default_menu_items()
     -- =============================================================================
 
     return {
-        {title = t('Subtitles'), value = 'script-binding uosc/subtitles'},
-        {title = t('Audio tracks'), value = 'script-binding uosc/audio'},
-        {title = t('Stream quality'), value = 'script-binding uosc/stream-quality'},
-        {title = t('Playlist'), value = 'script-binding uosc/items'},
-        {title = t('Chapters'), value = 'script-binding uosc/chapters'},
-        
+        -- [NOW PLAYING] per-file tracks & playback
         {
-            title = t('Navigation'),
+            title = 'Now Playing',
+            icon = 'subscriptions',
             items = {
-                { title = t('Next'), hint = t('playlist or file'), value = 'script-binding uosc/next' },
-                { title = t('Prev'), hint = t('playlist or file'), value = 'script-binding uosc/prev' },
-                { title = t('Delete file & Next'), value = 'script-binding uosc/delete-file-next' },
-                { title = t('Delete file & Prev'), value = 'script-binding uosc/delete-file-prev' },
-                { title = t('Delete file & Quit'), value = 'script-binding uosc/delete-file-quit' },
-                { title = t('Open file'), value = 'script-binding uosc/open-file' },
+                {title = t('Subtitles'),     value = 'script-binding uosc/subtitles',     hint = 's'},
+                {title = t('Audio tracks'),  value = 'script-binding uosc/audio',          hint = 'a'},
+                {title = t('Chapters'),      value = 'script-binding uosc/chapters'},
+                {title = t('Stream quality'),value = 'script-binding uosc/stream-quality'},
+                sync_data,
+                {
+                    title = 'Skip Options',
+                    icon = 'fast_forward',
+                    items = {
+                        { title = 'Intro',   value = 'script-message-to skip_intro skip-toggle-intro',   active = get_anime_state("skip_target_intro") ~= false },
+                        { title = 'Opening', value = 'script-message-to skip_intro skip-toggle-opening', active = get_anime_state("skip_target_opening") ~= false },
+                        { title = 'Ending',  value = 'script-message-to skip_intro skip-toggle-ending',  active = get_anime_state("skip_target_ending") ~= false, hint = 'Also controls Preview' },
+                        { title = 'Edit Chapter Overrides', icon = 'edit', value = 'run cmd /c start "" "C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/script-opts/skip_intro.conf"' },
+                        { title = 'Reload Overrides', icon = 'refresh', value = 'script-message reload-skip-intro', hint = 'Apply edits without restart' },
+                    },
+                },
             },
         },
 
-        -- [CONTROLS EMBEDDED]
-        controls_data,
+        -- [QUALITY] presets + quality engines
+        {
+            title = 'Quality',
+            icon = 'palette',
+            separator = true,
+            items = {
+                -- Upscaling / quality presets (container; currently just Zego)
+                {
+                    title = 'Upscaling Presets',
+                    icon = 'dashboard_customize',
+                    items = {
+                        { title = 'Zego Presets', icon = 'auto_awesome', value = 'script-binding anime_profile_controller/open-zego-custom-menu', hint = '<' },
+                    },
+                },
+
+                -- [CONTROLS EMBEDDED] (inside Quality)
+                controls_data,
 
 		-- [ANIME BUILD OPTIONS]
         {
@@ -1046,51 +1072,44 @@ function create_default_menu_items()
             },
         },
 
+                { title = 'Ambient Crop', icon = 'blur_on', value = 'script-message toggle-crop-ambient', hint = 'Ctrl+x' },
+            },
+        },
+
+        -- ===== Root quick actions =====
+        {
+            title = 'History',
+            icon = 'history',
+            value = 'script-binding history/menu',
+            hint = 'Ctrl+h',
+        },
+
+        {
+            title = t('Playlist'),
+            icon = 'list_alt',
+            value = 'script-binding uosc/items',
+            hint = 'w',
+        },
+
+        {
+            title = t('Navigation'),
+            icon = 'navigation',
+            separator = true,
+            items = {
+                { title = t('Next'), hint = t('playlist or file'), value = 'script-binding uosc/next' },
+                { title = t('Prev'), hint = t('playlist or file'), value = 'script-binding uosc/prev' },
+                { title = t('Delete file & Next'), value = 'script-binding uosc/delete-file-next' },
+                { title = t('Delete file & Prev'), value = 'script-binding uosc/delete-file-prev' },
+                { title = t('Delete file & Quit'), value = 'script-binding uosc/delete-file-quit' },
+                { title = t('Open file'), value = 'script-binding uosc/open-file' },
+            },
+        },
 
         {
             title = 'Binds',
             icon = 'keyboard',
             value = 'run cmd /c start "" "C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/input.conf"',
-        },
-
-        {
-            title = 'History',
-            icon = 'history',
-            value = 'script-binding history/menu',
-        },
-
-        {
-            title = 'Skip Options',
-            icon = 'fast_forward',
-            items = {
-                {
-                    title = 'Intro',
-                    value = 'script-message-to skip_intro skip-toggle-intro',
-                    active = get_anime_state("skip_target_intro") ~= false,
-                },
-                {
-                    title = 'Opening',
-                    value = 'script-message-to skip_intro skip-toggle-opening',
-                    active = get_anime_state("skip_target_opening") ~= false,
-                },
-                {
-                    title = 'Ending',
-                    value = 'script-message-to skip_intro skip-toggle-ending',
-                    active = get_anime_state("skip_target_ending") ~= false,
-                    hint = 'Also controls Preview',
-                },
-                {
-                    title = 'Edit Chapter Overrides',
-                    icon = 'edit',
-                    value = 'run cmd /c start "" "C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/script-opts/skip_intro.conf"',
-                },
-                {
-                    title = 'Reload Overrides',
-                    icon = 'refresh',
-                    value = 'script-message reload-skip-intro',
-                    hint = 'Apply edits without restart',
-                },
-            },
+            hint = 'Shift+Alt+B',
         },
 
 
@@ -1114,6 +1133,17 @@ function create_default_menu_items()
                 {title = t('Open config folder'), value = 'script-binding uosc/open-config-directory'},
                 {title = t('Update uosc'), value = 'script-binding uosc/update'},
             },
+        },
+        {
+            title = 'Binds Input Test',
+            icon = 'keyboard_alt',
+            value = 'run mpv --input-test --force-window=yes --idle=yes "--title=Binds Input Test" "--script=C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/input-test-hint.lua"',
+        },
+        {
+            title = 'Update MPV',
+            icon = 'system_update_alt',
+            value = [[write-watch-later-config; run "powershell" "-NoProfile" "-Command" "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/update-mpv.ps1'"]],
+            separator = true,
         },
         {title = t('Quit'), value = 'quit'},
     }

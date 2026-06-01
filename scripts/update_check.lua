@@ -50,4 +50,8 @@ local function check_updates(user_initiated)
 end
 
 mp.register_script_message("check-for-updates", function() check_updates(true) end)
-mp.add_timeout(5, function() check_updates(false) end)
+-- Startup auto-check disabled: this config is a custom fork, so the upstream
+-- MPV-Anime-Build version (Chinna95P repo) is irrelevant and updating would
+-- overwrite all customizations. Manual check still available via the
+-- "check-for-updates" script-message (Quality > Anime Build Options > System).
+-- mp.add_timeout(5, function() check_updates(false) end)

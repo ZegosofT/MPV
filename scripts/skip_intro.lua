@@ -53,16 +53,55 @@ local state = {
     active_chapter_idx = nil
 }
 
--- Conf-loaded map (rebuilt every load_manual_overrides()).
+-- Conf-loaded maps (rebuilt every load_manual_overrides()).
 local manual_title_labels = {} -- normalized_title -> label
+-- Per-label countdown override in seconds. Special value 0 = instant skip
+-- (no OSD, no cancel window). Anything missing uses opts.countdown.
+local manual_countdowns   = {} -- label -> integer seconds
 
 local function normalize_title(t)
     if not t then return "" end
     return (t:match("^%s*(.-)%s*$") or ""):lower()
 end
 
+-- ----------------------------------------------------------------
+-- Persistent toggle state (skip_intro / skip_opening / skip_ending +
+-- master `enabled` and `auto_skip`). Stored in ~~/skip_intro_state.json
+-- separate from skip_intro.conf so the user-edited title list and the
+-- runtime toggles don't step on each other.
+-- ----------------------------------------------------------------
+local STATE_PATH = mp.command_native({"expand-path", "~~/skip_intro_state.json"})
+
+local function save_state()
+    local f = io.open(STATE_PATH, "w")
+    if not f then return end
+    f:write(utils.format_json({
+        enabled      = opts.enabled,
+        auto_skip    = opts.auto_skip,
+        skip_intro   = opts.skip_intro,
+        skip_opening = opts.skip_opening,
+        skip_ending  = opts.skip_ending,
+    }) or "{}")
+    f:close()
+end
+
+local function load_state()
+    local f = io.open(STATE_PATH, "r")
+    if not f then return end
+    local content = f:read("*a")
+    f:close()
+    local data = utils.parse_json(content)
+    if type(data) ~= "table" then return end
+    if data.enabled      ~= nil then opts.enabled      = data.enabled      end
+    if data.auto_skip    ~= nil then opts.auto_skip    = data.auto_skip    end
+    if data.skip_intro   ~= nil then opts.skip_intro   = data.skip_intro   end
+    if data.skip_opening ~= nil then opts.skip_opening = data.skip_opening end
+    if data.skip_ending  ~= nil then opts.skip_ending  = data.skip_ending  end
+end
+
 local function load_manual_overrides()
     manual_title_labels = {}
+    manual_countdowns   = {}
 
     local conf_path = mp.command_native({"expand-path", "~~/script-opts/skip_intro.conf"})
     local f = io.open(conf_path, "r")
@@ -72,14 +111,25 @@ local function load_manual_overrides()
         if not line:match("^%s*#") and not line:match("^%s*$") then
             local key, value = line:match("^%s*([%w_]+)%s*=%s*(.*)$")
             if key and value then
-                local label = CATEGORY_TO_LABEL[key:lower()]
-                if label then
-                    -- Pure exact-title match. Each quoted string in the
-                    -- value list becomes one matchable chapter title.
-                    for title in value:gmatch('"([^"]*)"') do
-                        local norm = normalize_title(title)
-                        if norm ~= "" then
-                            manual_title_labels[norm] = label
+                local key_l = key:lower()
+
+                -- Pattern 1: per-category countdown.  e.g. preview_countdown=0
+                local cat = key_l:match("^(%w+)_countdown$")
+                if cat then
+                    local label = CATEGORY_TO_LABEL[cat]
+                    local n = tonumber(value:match("^%s*(%-?%d+)%s*$"))
+                    if label and n then
+                        manual_countdowns[label] = n
+                    end
+                else
+                    -- Pattern 2: title list.  e.g. opening="Opening","OP"
+                    local label = CATEGORY_TO_LABEL[key_l]
+                    if label then
+                        for title in value:gmatch('"([^"]*)"') do
+                            local norm = normalize_title(title)
+                            if norm ~= "" then
+                                manual_title_labels[norm] = label
+                            end
                         end
                     end
                 end
@@ -208,7 +258,7 @@ local function cancel_current_countdown()
     clear_osd_later(1.5)
 end
 
-local function start_countdown(label, chapter_idx)
+local function start_countdown(label, chapter_idx, duration)
     stop_countdown()
     stop_clear_timer()
 
@@ -217,7 +267,7 @@ local function start_countdown(label, chapter_idx)
     state.active_chapter_idx   = chapter_idx
     state.cancelled_chapters[chapter_idx] = nil
 
-    local remaining = opts.countdown
+    local remaining = duration or opts.countdown
 
     mp.add_forced_key_binding(opts.cancel_key,       "skip-intro-cancel-countdown", cancel_current_countdown)
     mp.add_forced_key_binding(opts.instant_skip_key, "skip-intro-instant-skip",     skip_action)
@@ -263,6 +313,7 @@ end
 
 local function toggle_auto_skip()
     opts.auto_skip = not opts.auto_skip
+    save_state()
     mp.osd_message("Auto-skip OP/ED: " .. (opts.auto_skip and "ON" or "OFF"), 2)
 end
 
@@ -292,7 +343,13 @@ local function on_tick()
         stop_countdown(); clear_osd()
 
         if opts.auto_skip and not state.cancelled_chapters[current_idx] then
-            start_countdown(label, current_idx)
+            local cd = manual_countdowns[label] or opts.countdown
+            if cd <= 0 then
+                -- Instant skip: no OSD, no cancel chance.
+                skip_action()
+            else
+                start_countdown(label, current_idx, cd)
+            end
         end
     end
 end
@@ -301,23 +358,24 @@ mp.register_script_message("toggle-state", function(val)
     opts.enabled = (val == "true")
     if not opts.enabled then reset_runtime_state() end
     broadcast_skip_state()
+    save_state()
 end)
 
 mp.register_script_message("skip-toggle-intro", function()
     opts.skip_intro = not opts.skip_intro
-    reset_runtime_state(); broadcast_skip_state()
+    reset_runtime_state(); broadcast_skip_state(); save_state()
     mp.osd_message("Skip Intro: " .. (opts.skip_intro and "ON" or "OFF"), 2)
 end)
 
 mp.register_script_message("skip-toggle-opening", function()
     opts.skip_opening = not opts.skip_opening
-    reset_runtime_state(); broadcast_skip_state()
+    reset_runtime_state(); broadcast_skip_state(); save_state()
     mp.osd_message("Skip Opening: " .. (opts.skip_opening and "ON" or "OFF"), 2)
 end)
 
 mp.register_script_message("skip-toggle-ending", function()
     opts.skip_ending = not opts.skip_ending
-    reset_runtime_state(); broadcast_skip_state()
+    reset_runtime_state(); broadcast_skip_state(); save_state()
     mp.osd_message("Skip Ending/Preview: " .. (opts.skip_ending and "ON" or "OFF"), 2)
 end)
 
@@ -334,5 +392,9 @@ mp.register_event("end-file",    reset_runtime_state)
 mp.observe_property("chapter", "native", function()
     if state.countdown_active then stop_countdown(); clear_osd() end
 end)
+
+-- Load saved toggle state (skip_intro / opening / ending / enabled / auto_skip)
+-- so the user's choices survive across mpv launches.
+load_state()
 
 mp.add_periodic_timer(0.2, on_tick)

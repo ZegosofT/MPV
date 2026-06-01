@@ -5,3 +5,4 @@ watch_later/
 backup-mpv-to-github.bat
 *.claude
 .gitignore
+history.json
