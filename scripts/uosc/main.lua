@@ -816,6 +816,7 @@ function create_default_menu_items()
             title = 'Now Playing',
             icon = 'subscriptions',
             items = {
+                {title = t('Show in directory'), value = 'script-binding uosc/show-in-directory', icon = 'folder_open', hint = 'L'},
                 {title = t('Subtitles'),     value = 'script-binding uosc/subtitles',     hint = 's'},
                 {title = t('Audio tracks'),  value = 'script-binding uosc/audio',          hint = 'a'},
                 {title = t('Chapters'),      value = 'script-binding uosc/chapters'},
@@ -1129,9 +1130,7 @@ function create_default_menu_items()
                 {title = t('Editions'), value = 'script-binding uosc/editions'},
                 {title = t('Screenshot'), value = 'async screenshot'},
                 {title = t('Key bindings'), value = 'script-binding uosc/keybinds'},
-                {title = t('Show in directory'), value = 'script-binding uosc/show-in-directory'},
                 {title = t('Open config folder'), value = 'script-binding uosc/open-config-directory'},
-                {title = t('Update uosc'), value = 'script-binding uosc/update'},
             },
         },
         {
@@ -1143,6 +1142,11 @@ function create_default_menu_items()
             title = 'Update MPV',
             icon = 'system_update_alt',
             value = [[write-watch-later-config; run "powershell" "-NoProfile" "-Command" "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/update-mpv.ps1'"]],
+        },
+        {
+            title = 'Help / Shortcuts',
+            icon = 'help',
+            value = 'run cmd /c start "" "C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/Readme.md"',
             separator = true,
         },
         {title = t('Quit'), value = 'quit'},
