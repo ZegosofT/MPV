@@ -6,8 +6,16 @@
 
 $ErrorActionPreference = 'SilentlyContinue'
 
+# ====== EDIT THIS ======
+# Full path to YOUR mpv updater script (.bat). This is unique to your install,
+# so it must be set by hand. (The MPV-Anime-Build / shinchiro updater.bat.)
 $updater = 'C:\Users\TOM-DESKTOP\Documents\Tom\_Software\MPV\updater.bat'
-$mpvExe  = 'C:\Users\TOM-DESKTOP\Documents\Tom\_Software\MPV\mpv.exe'
+# =======================
+
+# mpv.exe is auto-detected from PATH. If mpv is NOT in your PATH, replace the
+# whole line below with an absolute path, e.g.:
+#   $mpvExe = 'C:\path\to\mpv.exe'
+$mpvExe = (Get-Command mpv -ErrorAction SilentlyContinue).Source
 
 # 1. Close every running mpv instance.
 Get-Process mpv | Stop-Process -Force
@@ -25,4 +33,9 @@ while ((Get-Process mpv) -and ($tries -lt 40)) {
 # 4. Relaunch mpv WITHOUT admin rights. Launching via explorer.exe drops the
 #    elevated token so mpv runs as the normal user (not as admin).
 #    history.lua resumes the last file at its saved position.
-Start-Process explorer.exe -ArgumentList $mpvExe
+if ($mpvExe) {
+    Start-Process explorer.exe -ArgumentList $mpvExe
+} else {
+    # Fallback: let the OS resolve "mpv" if it is on PATH but Get-Command missed it.
+    Start-Process explorer.exe -ArgumentList 'mpv'
+}

@@ -16,12 +16,11 @@ local msg    = require 'mp.msg'
 local utils  = require 'mp.utils'
 
 -- ====== CONFIG ======
--- Path to ffmpeg.exe. Default "ffmpeg" tries the system PATH first.
--- If that fails, point this at the absolute path of the ffmpeg.exe
--- you want to use, e.g.:
---   local FFMPEG = "C:/mpv/ffmpeg.exe"
+-- Path to ffmpeg. Default "ffmpeg" uses the system PATH (recommended:
+-- install ffmpeg and add its bin folder to PATH - see the README).
+-- If ffmpeg is NOT in your PATH, set the absolute path here instead, e.g.:
 --   local FFMPEG = "C:/ffmpeg/bin/ffmpeg.exe"
-local FFMPEG = "C:/ffmpeg/bin/ffmpeg.exe"
+local FFMPEG = "ffmpeg"
 -- ====================
 
 local begin_time = nil  ---@type number|nil

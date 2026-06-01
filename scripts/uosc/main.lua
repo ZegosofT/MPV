@@ -829,7 +829,7 @@ function create_default_menu_items()
                         { title = 'Intro',   value = 'script-message-to skip_intro skip-toggle-intro',   active = get_anime_state("skip_target_intro") ~= false },
                         { title = 'Opening', value = 'script-message-to skip_intro skip-toggle-opening', active = get_anime_state("skip_target_opening") ~= false },
                         { title = 'Ending',  value = 'script-message-to skip_intro skip-toggle-ending',  active = get_anime_state("skip_target_ending") ~= false, hint = 'Also controls Preview' },
-                        { title = 'Edit Chapter Overrides', icon = 'edit', value = 'run cmd /c start "" "C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/script-opts/skip_intro.conf"' },
+                        { title = 'Edit Chapter Overrides', icon = 'edit', value = [[run cmd /c start "" "%APPDATA%\\mpv\\script-opts\\skip_intro.conf"]] },
                         { title = 'Reload Overrides', icon = 'refresh', value = 'script-message reload-skip-intro', hint = 'Apply edits without restart' },
                     },
                 },
@@ -1109,7 +1109,7 @@ function create_default_menu_items()
         {
             title = 'Binds',
             icon = 'keyboard',
-            value = 'run cmd /c start "" "C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/input.conf"',
+            value = [[run cmd /c start "" "%APPDATA%\\mpv\\input.conf"]],
             hint = 'Shift+Alt+B',
         },
 
@@ -1136,17 +1136,17 @@ function create_default_menu_items()
         {
             title = 'Binds Input Test',
             icon = 'keyboard_alt',
-            value = 'run mpv --input-test --force-window=yes --idle=yes "--title=Binds Input Test" "--script=C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/input-test-hint.lua"',
+            value = 'run mpv --input-test --force-window=yes --idle=yes "--title=Binds Input Test" "--script=~~/input-test-hint.lua"',
         },
         {
             title = 'Update MPV',
             icon = 'system_update_alt',
-            value = [[write-watch-later-config; run "powershell" "-NoProfile" "-Command" "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/update-mpv.ps1'"]],
+            value = [[write-watch-later-config; run "powershell" "-NoProfile" "-Command" "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',($env:APPDATA + '\\mpv\\update-mpv.ps1')"]],
         },
         {
             title = 'Help / Shortcuts',
             icon = 'help',
-            value = 'run cmd /c start "" "C:/Users/TOM-DESKTOP/AppData/Roaming/mpv/Readme.md"',
+            value = [[run cmd /c start "" "%APPDATA%\\mpv\\Readme.md"]],
             separator = true,
         },
         {title = t('Quit'), value = 'quit'},

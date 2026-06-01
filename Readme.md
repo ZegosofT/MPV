@@ -12,14 +12,19 @@ settings — while still letting you override everything by hand.
 
 ## 📑 Table of Contents
 
-1. [Quick Start](#-quick-start)
-2. [What This Build Does](#-what-this-build-does-in-plain-english)
-3. [The Profile System](#-the-profile-system)
+1. [How to Install & Customize](#-how-to-install--customize)  ⬅ **read this first**
+   - [1. Install mpv + this config](#1-install-mpv--this-config)
+   - [2. Install ffmpeg (for the Slicer)](#2-install-ffmpeg-for-the-slicer)
+   - [3. Edit the machine-specific paths](#3-edit-the-machine-specific-paths)
+   - [4. Keyboard layout (AZERTY)](#4-keyboard-layout-azerty)
+2. [Quick Start](#-quick-start)
+3. [What This Build Does](#-what-this-build-does-in-plain-english)
+4. [The Profile System](#-the-profile-system)
    - [Auto-detection](#auto-detection-how-it-decides)
    - [Resolution tiers](#resolution-tiers)
    - [Custom presets (Zego Presets)](#custom-presets-zego-presets)
    - [Fidelity vs Performance](#fidelity-vs-performance-ctrlb)
-4. [Keyboard & Mouse Shortcuts](#-keyboard--mouse-shortcuts)
+5. [Keyboard & Mouse Shortcuts](#-keyboard--mouse-shortcuts)
    - [Mouse](#mouse)
    - [Playback & seeking](#playback--seeking)
    - [Volume & speed](#volume--speed)
@@ -28,11 +33,70 @@ settings — while still letting you override everything by hand.
    - [Subtitles](#subtitles)
    - [Tools & windows](#tools--windows)
    - [Number row (color & UI)](#number-row-color--ui)
-5. [Glossary — What Every Option Means](#-glossary--what-every-option-means)
-6. [Custom Scripts](#-custom-scripts)
-7. [The Right-Click Menu](#-the-right-click-menu)
-8. [Where Settings Are Saved](#-where-settings-are-saved)
-9. [Credits](#-credits)
+6. [Glossary — What Every Option Means](#-glossary--what-every-option-means)
+7. [Custom Scripts](#-custom-scripts)
+8. [The Right-Click Menu](#-the-right-click-menu)
+9. [Where Settings Are Saved](#-where-settings-are-saved)
+10. [Credits](#-credits)
+
+---
+
+## 🛠 How to Install & Customize
+
+> **Read this before using the build.** Most of it works out of the box, but a few things
+> point to locations that only exist on the original author's PC. This section lists
+> everything you must set up or edit yourself.
+
+### 1. Install mpv + this config
+
+1. Install **mpv for Windows** — a [shinchiro build](https://github.com/shinchiro/mpv-winbuild-cmake/releases)
+   is recommended (it bundles `mpv.exe`, `mpv.com`, and usually `ffmpeg.exe`).
+2. **Add mpv's folder to your PATH** (so `mpv` works from anywhere — several features rely on this):
+   - Press `Win`, type **"environment variables"**, open *Edit the system environment variables*.
+   - Click **Environment Variables…** → under *User variables* select **Path** → **Edit** → **New**.
+   - Paste the folder that contains `mpv.exe` (e.g. `C:\mpv`), click **OK** on every window.
+   - Open a new terminal and run `mpv --version` to confirm it's found.
+3. Copy this whole config folder into **`%APPDATA%\mpv`**
+   (paste `%APPDATA%\mpv` into the File Explorer address bar to open it).
+
+### 2. Install ffmpeg (for the Slicer)
+
+The **Slicer** (`Ctrl+Alt+C` — cut a clip to an `_output/` folder) needs `ffmpeg`. The script
+expects it on your **PATH**:
+
+1. Download a build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) ("release essentials")
+   or [BtbN](https://github.com/BtbN/FFmpeg-Builds/releases).
+2. Extract it somewhere permanent, e.g. `C:\ffmpeg`. Inside you'll find `C:\ffmpeg\bin\ffmpeg.exe`.
+3. **Add `C:\ffmpeg\bin` to your PATH** (same steps as above).
+4. Open a new terminal and run `ffmpeg -version` to confirm.
+
+> Shinchiro mpv builds often already include `ffmpeg.exe` next to `mpv.exe` — if that folder
+> is on your PATH, the Slicer works with no extra download.
+> If you'd rather not touch PATH, open `scripts/slicer.lua` and set
+> `local FFMPEG = "C:/full/path/to/ffmpeg.exe"`.
+
+### 3. Edit the machine-specific paths
+
+These point to locations unique to each user. Open each file and change the marked value:
+
+| File | What to set |
+|------|-------------|
+| `script-modules/file-browser-addons/favorite-folder.lua` | `FAVORITE` — your "home" folder for the `f` shortcut in the file browser (e.g. your anime/movies drive). |
+| `update-mpv.ps1` | `$updater` — full path to **your** mpv updater `.bat`. (mpv.exe itself is auto-detected from PATH.) Only needed if you use the **Update MPV** menu button. |
+
+Everything else inside the config folder uses portable paths (`%APPDATA%\mpv` and mpv's `~~/`)
+and needs no editing.
+
+### 4. Keyboard layout (AZERTY)
+
+The number-row shortcuts (`²`, `&`, `é`, `"`, `'`, `è`, `_`, `à`, `(`…) are mapped for a
+**French AZERTY** keyboard. On a **QWERTY** keyboard those physical keys send different
+characters, so those specific binds will be wrong for you. Either:
+
+- Edit `input.conf` and remap them to your layout, **or**
+- Just use the right-click menu / the documented letter-key shortcuts, which are layout-independent.
+
+To see exactly what any key does on *your* keyboard, use **menu → Binds Input Test**.
 
 ---
 
