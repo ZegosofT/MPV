@@ -1,5 +1,0 @@
-start=1.650000
-gamma=0.020000
-contrast=0.050000
-saturation=0.050000
-af=format=channels=%3%7.1,lavfi=graph=surround,lavfi=graph=%8%bass=g=3

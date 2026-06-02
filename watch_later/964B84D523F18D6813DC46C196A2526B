@@ -1,9 +1,0 @@
-start=1587.961000
-volume=10.000000
-gamma=0.020000
-brightness=2.000000
-saturation=0.050000
-af=format=channels=%3%7.1,lavfi=graph=surround,lavfi=graph=%8%bass=g=3
-panscan=1.000000
-aid=1
-sid=1
