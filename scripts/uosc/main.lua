@@ -1139,9 +1139,29 @@ function create_default_menu_items()
             value = 'run mpv --input-test --force-window=yes --idle=yes "--title=Binds Input Test" "--script=~~/input-test-hint.lua"',
         },
         {
-            title = 'Update MPV',
+            title = 'Update',
             icon = 'system_update_alt',
-            value = [[write-watch-later-config; run "powershell" "-NoProfile" "-Command" "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',($env:APPDATA + '\\mpv\\update-mpv.ps1')"]],
+            hint = (get_anime_state('zego_update_available') and 'config update available' or nil),
+            items = {
+                {
+                    title = 'Update MPV',
+                    icon = 'movie',
+                    value = [[write-watch-later-config; run "powershell" "-NoProfile" "-Command" "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',($env:APPDATA + '\\mpv\\update-mpv.ps1')"]],
+                },
+                {
+                    title = 'Update Zego Config MPV',
+                    icon = 'dashboard_customize',
+                    hint = (get_anime_state('zego_update_available')
+                            and ('new: ' .. (get_anime_state('zego_remote_version') or ''))
+                            or nil),
+                    value = 'script-binding zego_update/pull',
+                },
+                {
+                    title = 'Check for config updates now',
+                    icon = 'refresh',
+                    value = 'script-binding zego_update/check',
+                },
+            },
         },
         {
             title = 'Help / Shortcuts',
