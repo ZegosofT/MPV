@@ -49,20 +49,22 @@ settings — while still letting you override everything by hand.
 
 ### 1. Install mpv + this config
 
-1. Install **mpv for Windows** — a [shinchiro build](https://github.com/shinchiro/mpv-winbuild-cmake/releases)
-   is recommended (it bundles `mpv.exe`, `mpv.com`, and usually `ffmpeg.exe`).
-2. **Add mpv's folder to your PATH** (so `mpv` works from anywhere — several features rely on this):
-   - Press `Win`, type **"environment variables"**, open *Edit the system environment variables*.
-   - Click **Environment Variables…** → under *User variables* select **Path** → **Edit** → **New**.
-   - Paste the folder that contains `mpv.exe` (e.g. `C:\mpv`), click **OK** on every window.
-   - Open a new terminal and run `mpv --version` to confirm it's found.
+1. Download **mpv for Windows** — a [shinchiro build](https://github.com/shinchiro/mpv-winbuild-cmake/releases)
+   is recommended (it bundles `mpv.exe`, `mpv.com`, and usually `ffmpeg.exe`). Extract it anywhere.
+2. **Run the installer.** Open the `installer` subfolder, then right-click
+   **`mpv-install.bat` → Run as administrator**. This registers mpv with Windows
+   (App Paths + file associations + Start Menu shortcut). Thanks to that, the build can find
+   and relaunch mpv automatically — **mpv does NOT need to be on your PATH.**
 3. Copy this whole config folder into **`%APPDATA%\mpv`**
    (paste `%APPDATA%\mpv` into the File Explorer address bar to open it).
 
+> If you skip `mpv-install.bat`, the features that launch mpv (reload `Ctrl+R`, Binds Input
+> Test, the Update MPV relaunch) will instead require `mpv` to be on your PATH.
+
 ### 2. Install ffmpeg (for the Slicer)
 
-The **Slicer** (`Ctrl+Alt+C` — cut a clip to an `_output/` folder) needs `ffmpeg`. The script
-expects it on your **PATH**:
+**ffmpeg is the only thing this build needs on your PATH.** The **Slicer** (`Ctrl+Alt+C` —
+cut a clip to an `_output/` folder) calls it:
 
 1. Download a build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) ("release essentials")
    or [BtbN](https://github.com/BtbN/FFmpeg-Builds/releases).
@@ -81,8 +83,9 @@ These point to locations unique to each user. Open each file and change the mark
 
 | File | What to set |
 |------|-------------|
+| `mpv.conf` — `ytdl_hook-ytdl_path` (near the top) | Path to **your** `yt-dlp.exe`, needed for YouTube / streaming. Set it to your yt-dlp, **or delete that line** if yt-dlp is on your PATH or sits next to `mpv.exe`. Without it, YouTube links won't play. |
 | `script-modules/file-browser-addons/favorite-folder.lua` | `FAVORITE` — your "home" folder for the `f` shortcut in the file browser (e.g. your anime/movies drive). |
-| `update-mpv.ps1` | `$updater` — full path to **your** mpv updater `.bat`. (mpv.exe itself is auto-detected from PATH.) Only needed if you use the **Update MPV** menu button. |
+| `update-mpv.ps1` | `$updater` — full path to **your** mpv updater `.bat`. Only needed for the **Update MPV** button. (mpv.exe is auto-detected via the App Paths registry.) |
 
 Everything else inside the config folder uses portable paths (`%APPDATA%\mpv` and mpv's `~~/`)
 and needs no editing.
@@ -450,10 +453,15 @@ Zooms the picture to fill the screen, cropping the edges (vs letterboxing). `Alt
 ⌨ Binds                 (opens input.conf)
 🔧 Utils             ▸
 ⌨ Binds Input Test      (shows what each key is bound to)
-⬇ Update MPV            (closes mpv, updates the player, reopens)
+⬇ Update            ▸   Update MPV (player) · Update Zego Config (this config from GitHub) · Check now
+❓ Help / Shortcuts      (opens this Readme)
 ──────────────
 ✕ Quit
 ```
+
+> The **Update** menu shows a "config update available" hint when your GitHub repo has a newer
+> version than what's installed. **Update Zego Config** downloads the latest config from GitHub
+> and applies it in one click (no git needed) — then reload with `Ctrl+R`.
 
 ---
 
