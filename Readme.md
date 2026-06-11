@@ -66,8 +66,11 @@ cut a clip to an `_output/` folder) calls it:
 1. Download it from the official site: [ffmpeg.org/download.html](https://ffmpeg.org/download.html)
    (under Windows, grab a Windows build — "essentials" is enough).
 2. Extract it somewhere permanent, e.g. `C:\ffmpeg`. Inside you'll find `C:\ffmpeg\bin\ffmpeg.exe`.
-3. **Add `C:\ffmpeg\bin` to your PATH** (same steps as above).
-4. Open a new terminal and run `ffmpeg -version` to confirm.
+3. **Add `C:\ffmpeg\bin` to your PATH:**
+   - Press `Win`, type **"environment variables"**, open *Edit the system environment variables*.
+   - Click **Environment Variables…** → under *User variables* select **Path** → **Edit** → **New**.
+   - Paste the folder that contains `ffmpeg.exe` (e.g. `C:\ffmpeg\bin`), then click **OK** on every window.
+4. Open a **new** terminal and run `ffmpeg -version` to confirm (and restart mpv so it sees the new PATH).
 
 > Shinchiro mpv builds often already include `ffmpeg.exe` next to `mpv.exe` — if that folder
 > is on your PATH, the Slicer works with no extra download.
