@@ -63,8 +63,8 @@ settings — while still letting you override everything by hand.
 **ffmpeg is the only thing this build needs on your PATH.** The **Slicer** (`Ctrl+Alt+C` —
 cut a clip to an `_output/` folder) calls it:
 
-1. Download a build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) ("release essentials")
-   or [BtbN](https://github.com/BtbN/FFmpeg-Builds/releases).
+1. Download it from the official site: [ffmpeg.org/download.html](https://ffmpeg.org/download.html)
+   (under Windows, grab a Windows build — "essentials" is enough).
 2. Extract it somewhere permanent, e.g. `C:\ffmpeg`. Inside you'll find `C:\ffmpeg\bin\ffmpeg.exe`.
 3. **Add `C:\ffmpeg\bin` to your PATH** (same steps as above).
 4. Open a new terminal and run `ffmpeg -version` to confirm.
