@@ -1136,7 +1136,7 @@ function create_default_menu_items()
         {
             title = 'Binds Input Test',
             icon = 'keyboard_alt',
-            value = 'run mpv --input-test --force-window=yes --idle=yes "--title=Binds Input Test" "--script=~~/input-test-hint.lua"',
+            value = 'script-binding reload_mpv/input-test',
         },
         {
             title = 'Update',

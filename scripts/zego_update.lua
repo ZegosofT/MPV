@@ -1,11 +1,12 @@
 -- [[
 --    zego_update.lua
 --    Checks YOUR config repo (github.com/ZegosofT/MPV) for a newer version
---    and lets you pull the update via git. Broadcasts an "update available"
---    flag that the uosc menu reads to show an indicator.
+--    and lets you update with one click — it downloads the latest GitHub ZIP
+--    and overwrites the local config (no git needed). Broadcasts an
+--    "update available" flag that the uosc menu reads to show an indicator.
 --
 --    Versioning: script-opts/zego_version.conf holds your local version.
---    Bump it before each `git push` so other installs detect the update.
+--    Bump it before each push so other installs detect the update.
 -- ]]
 
 local mp    = require 'mp'
@@ -85,32 +86,20 @@ local function check(user_initiated)
 end
 
 -- ----------------------------------------------------------------
--- Pull the update (git fast-forward only — never clobbers local work)
+-- Update the config by downloading the latest GitHub ZIP and overwriting
+-- the local files. Works WITHOUT git (one click, no manual download).
+-- Runs in a visible PowerShell window so the user can watch progress.
 -- ----------------------------------------------------------------
 local function pull()
-    local dir = mp.command_native({ "expand-path", "~~/" })
-    mp.osd_message("Updating config from GitHub…", 3)
-
-    local res = utils.subprocess({
-        args = { "git", "-C", dir, "pull", "--ff-only" },
-        cancellable = false, capture_stdout = true, capture_stderr = true,
+    local script = mp.command_native({ "expand-path", "~~/update-zego-config.ps1" })
+    mp.osd_message("Launching config updater — follow the popup window…", 4)
+    mp.command_native({
+        name = "subprocess",
+        args = { "cmd", "/c", "start", "", "powershell", "-NoProfile",
+                 "-ExecutionPolicy", "Bypass", "-File", script },
+        detach = true,
         playback_only = false,
     })
-
-    if res.status == 0 then
-        local out = (res.stdout or ""):gsub("%s+$", "")
-        if out:find("Already up to date") or out:find("up%-to%-date") then
-            mp.osd_message("Config already up to date.", 4)
-        else
-            update_available = false
-            broadcast()
-            mp.osd_message("Config updated! Press Ctrl+R (or restart) to apply.", 6)
-        end
-    else
-        mp.osd_message("Update failed — see console (²). Local changes may block it.", 6)
-        if res.stderr then msg.error(res.stderr) end
-        if res.stdout then msg.info(res.stdout) end
-    end
 end
 
 -- ----------------------------------------------------------------

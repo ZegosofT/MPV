@@ -12,10 +12,10 @@ $ErrorActionPreference = 'SilentlyContinue'
 $updater = 'C:\Users\TOM-DESKTOP\Documents\Tom\_Software\MPV\updater.bat'
 # =======================
 
-# mpv.exe is auto-detected from PATH. If mpv is NOT in your PATH, replace the
-# whole line below with an absolute path, e.g.:
-#   $mpvExe = 'C:\path\to\mpv.exe'
-$mpvExe = (Get-Command mpv -ErrorAction SilentlyContinue).Source
+# mpv.exe is auto-detected: first via the "App Paths" registry key that
+# mpv-install.bat creates (works without PATH), then via PATH as a fallback.
+$mpvExe = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\mpv.exe' -ErrorAction SilentlyContinue).'(default)'
+if (-not $mpvExe) { $mpvExe = (Get-Command mpv -ErrorAction SilentlyContinue).Source }
 
 # 1. Close every running mpv instance.
 Get-Process mpv | Stop-Process -Force
