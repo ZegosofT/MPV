@@ -51,15 +51,12 @@ settings — while still letting you override everything by hand.
 
 1. Download **mpv for Windows** — a [shinchiro build](https://github.com/shinchiro/mpv-winbuild-cmake/releases)
    is recommended (it bundles `mpv.exe`, `mpv.com`, and usually `ffmpeg.exe`). Extract it anywhere.
-2. **Run the installer.** Open the `installer` subfolder, then right-click
-   **`mpv-install.bat` → Run as administrator**. This registers mpv with Windows
-   (App Paths + file associations + Start Menu shortcut). Thanks to that, the build can find
-   and relaunch mpv automatically — **mpv does NOT need to be on your PATH.**
+2. **Run the installer (required).** Open the `installer` subfolder, then right-click
+   **`mpv-install.bat` → Run as administrator**. It registers mpv with Windows (file
+   associations, Start Menu, and the lookup this build uses to relaunch mpv). Features like
+   reload (`Ctrl+R`), Binds Input Test and the Update MPV relaunch depend on it.
 3. Copy this whole config folder into **`%APPDATA%\mpv`**
    (paste `%APPDATA%\mpv` into the File Explorer address bar to open it).
-
-> If you skip `mpv-install.bat`, the features that launch mpv (reload `Ctrl+R`, Binds Input
-> Test, the Update MPV relaunch) will instead require `mpv` to be on your PATH.
 
 ### 2. Install ffmpeg (for the Slicer)
 
@@ -285,7 +282,8 @@ Neither is "better" — it's taste. Toggle with `Ctrl+B`. The choice is remember
 
 | Key | Action |
 |-----|--------|
-| `e` | Open file browser |
+| `e` | Open the in-player file browser |
+| `L` | Show the current file in its folder (Windows Explorer) |
 | `w` | Open playlist |
 | `c` | Flash the clock for 2 s |
 | `Alt+C` | Toggle the clock (stays on) |
@@ -318,7 +316,9 @@ Neither is "better" — it's taste. Toggle with `Ctrl+B`. The choice is remember
 | `8` / `_` | Saturation − / + |
 | `0` | Reset brightness/contrast/gamma/saturation |
 | `Ctrl+&` / `Ctrl+é` | Anime Mode: Force On / Force Off |
-| `Ctrl+L` *(if bound)* | Anime Mode: Auto |
+
+> Anime Mode **"Auto"** has no dedicated key — set it from the menu
+> (Quality → Anime Build Options → Anime Mode).
 
 ---
 
@@ -424,7 +424,8 @@ Zooms the picture to fill the screen, cropping the edges (vs letterboxing). `Alt
 | `hud_toggle.lua` | Force individual UI elements always-on |
 | `sub_scale.lua` | Resize ASS subs without losing your custom font |
 | `smart_prev.lua` | Restart-or-previous-episode logic |
-| `reload_mpv.lua` | Restart mpv and resume position |
+| `reload_mpv.lua` | Restart mpv and resume position (also launches Binds Input Test) |
+| `zego_update.lua` | Checks your GitHub for a newer config version; one-click update (downloads latest, no git) |
 | `auto_anime_preset.lua` | Auto-apply a preset when a file is inside an `/anime/` folder |
 | `hdr_detect.lua` | Detect Windows HDR state, auto switch passthrough/tone-map |
 | `power_manager.lua` | Battery detection → low-power profile |
@@ -474,7 +475,8 @@ Zooms the picture to fill the screen, cropping the edges (vs letterboxing). `Alt
 | `script-opts/hdr-mode.conf` | Tone-mapping algorithm, target peak |
 | `script-opts/skip_intro.conf` | Which chapter titles to skip + per-type countdowns |
 | `skip_intro_state.json` | Skip toggles (Intro/Opening/Ending on/off) |
-| `firequalizer15.conf` | Equalizer band values |
+| `script-opts/firequalizer15.conf` | Equalizer band values |
+| `script-opts/zego_version.conf` | Config version — bump before pushing so other installs detect updates |
 | `history.json` | Recently-played list |
 | `watch_later/` | Resume positions per file |
 
