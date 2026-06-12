@@ -1,12 +1,14 @@
 -- [[
 --    folder_track_memory.lua
---    Remembers the audio + subtitle track you pick, PER FOLDER (= per series),
---    and re-applies it on every other episode in that same folder.
+--    Remembers the audio + subtitle of a series, PER FOLDER, and re-applies it
+--    on every other episode in that same folder.
 --
---    Matches tracks by LANGUAGE + TITLE (not by track number), so it still
---    picks the right track even if the track order differs between episodes.
---    Runs AFTER track-selector.lua, so your remembered choice overrides the
---    automatic selection. New folder (e.g. Season 2) = choose again once.
+--    On the FIRST episode you open in a folder, it captures whatever is playing
+--    (the default / auto-selected audio + subtitle) and locks it for that folder.
+--    On the next episodes it re-applies that choice, matched by LANGUAGE + TITLE
+--    (not by track number) — so if "French" is track 1 on ep1 but track 2 on ep2,
+--    it still picks French. If you change a track by hand, the memory updates.
+--    New folder (e.g. Season 2) = it captures again from its first episode.
 -- ]]
 
 local mp    = require 'mp'
@@ -125,14 +127,16 @@ end
 -- ----------------------------------------------------------------
 -- Save current selection into the folder's memory
 -- ----------------------------------------------------------------
-local function save_current()
+local function save_current(silent)
     if not current_folder then return end
     local mem = memory[current_folder] or {}
     mem.audio = describe("audio") or mem.audio
     mem.sub   = describe("sub")   or mem.sub
     memory[current_folder] = mem
     save_store()
-    mp.osd_message("🎬 Audio + subtitle remembered for this series", 2)
+    if not silent then
+        mp.osd_message("🎬 Audio + subtitle remembered for this series", 2)
+    end
 end
 
 -- ----------------------------------------------------------------
@@ -143,9 +147,16 @@ mp.register_event("file-loaded", function()
     settling = true
     if settle_timer then settle_timer:kill(); settle_timer = nil end
 
-    -- Apply after track-selector has had its turn, then open the "manual" window.
+    -- After track-selector has had its turn:
+    --   * known folder  -> re-apply the remembered choice
+    --   * new folder    -> capture whatever is playing now (the auto/default pick)
+    -- Then open the window where manual changes count.
     mp.add_timeout(APPLY_DELAY, function()
-        apply_memory()
+        if current_folder and memory[current_folder] then
+            apply_memory()
+        elseif current_folder then
+            save_current(true)   -- silent auto-capture for this folder's 1st episode
+        end
         settle_timer = mp.add_timeout(SETTLE, function() settling = false end)
     end)
 end)
