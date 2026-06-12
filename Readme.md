@@ -435,6 +435,7 @@ Zooms the picture to fill the screen, cropping the edges (vs letterboxing). `Alt
 | `vsr_auto.lua` | Nvidia RTX VSR control |
 | `ambient-manager.lua` | Ambient-glow shader generator |
 | `track-selector.lua` | Smart audio/subtitle auto-selection (Japanese-aware) |
+| `folder_track_memory.lua` | Remembers the audio/subtitle you pick **per folder (series)** and re-applies it on the next episodes (matched by language + title) |
 | `audio-visualizer.lua` | Visualizers for audio-only files |
 | `firequalizer15.lua` | 15-band audio equalizer |
 | `Up_Next.lua` | "Up Next" episode card near end of file |
@@ -481,6 +482,7 @@ Zooms the picture to fill the screen, cropping the edges (vs letterboxing). `Alt
 | `script-opts/firequalizer15.conf` | Equalizer band values |
 | `script-opts/zego_version.conf` | Config version — bump before pushing so other installs detect updates |
 | `history.json` | Recently-played list |
+| `track_memory.json` | Audio/subtitle choice remembered per folder (series) |
 | `watch_later/` | Resume positions per file |
 
 ---
