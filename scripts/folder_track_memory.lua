@@ -16,14 +16,21 @@ local utils = require 'mp.utils'
 local msg   = require 'mp.msg'
 
 local STORE_PATH  = mp.command_native({ "expand-path", "~~/track_memory.json" })
-local APPLY_DELAY = 0.7   -- apply remembered tracks this long after load (after track-selector)
-local SETTLE      = 1.0   -- after applying, wait this long before changes count as "manual"
+
+-- The remembered tracks are RE-ASSERTED several times after load (offsets in
+-- seconds from file-loaded). A single apply can lose a race: mpv or
+-- track-selector sometimes re-selects the default sub a beat later, which is
+-- why the language occasionally "snapped back" to English. Re-checking for a
+-- few seconds defeats any late override. Each pass only changes a track if it
+-- isn't already the remembered one, so it never fights itself.
+local REASSERT_AT = { 0.7, 1.5, 2.5, 3.5 }
+local SETTLE      = 1.0   -- after the last re-assert, wait this long before changes count as "manual"
 
 -- memory[folder] = { audio = {lang,title} | nil, sub = {lang,title} | {off=true} | nil }
 local memory = {}
 local current_folder = nil
 local settling = true       -- true while loading/applying; ignore track changes
-local settle_timer = nil
+local pending_timers = {}   -- timers from the current file-loaded (killed on the next load)
 
 -- ----------------------------------------------------------------
 -- Persistence
@@ -61,26 +68,24 @@ local function count_tracks(ttype)
     return n
 end
 
--- Find a track id matching a remembered {lang, title}. Prefer exact lang+title,
--- fall back to a lang-only match.
+-- Find the track id that best matches a remembered track. Among tracks of the
+-- right language, score by flags + title and pick the best — so a "Forced"
+-- (signs-only) track is never confused with the "Full" dialogue track of the
+-- same language, even when neither has a distinctive title.
 local function find_track(ttype, want)
     if not want then return nil end
-    local lang_only = nil
+    local best_id, best_score = nil, -1
     for _, t in ipairs(mp.get_property_native("track-list") or {}) do
-        if t.type == ttype then
-            local lang  = (t.lang or ""):lower()
-            local title = (t.title or ""):lower()
-            if lang == (want.lang or "") then
-                if want.title and want.title ~= "" then
-                    if title == want.title then return t.id end
-                    if not lang_only then lang_only = t.id end
-                else
-                    return t.id
-                end
-            end
+        if t.type == ttype and (t.lang or ""):lower() == (want.lang or "") then
+            local score = 0
+            -- "forced" is the key differentiator (Forced/signs vs Full dialogue)
+            if (t.forced or false)              == (want.forced or false) then score = score + 4 end
+            if (t["hearing-impaired"] or false) == (want.hi or false)     then score = score + 2 end
+            if (t.title or ""):lower()          == (want.title or "")     then score = score + 1 end
+            if score > best_score then best_score = score; best_id = t.id end
         end
     end
-    return lang_only
+    return best_id
 end
 
 -- Describe the currently selected track of a type, for saving.
@@ -96,7 +101,12 @@ local function describe(ttype)
     if not id then return nil end
     for _, t in ipairs(mp.get_property_native("track-list") or {}) do
         if t.type == ttype and t.id == id then
-            return { lang = (t.lang or ""):lower(), title = (t.title or ""):lower() }
+            return {
+                lang   = (t.lang or ""):lower(),
+                title  = (t.title or ""):lower(),
+                forced = t.forced or false,
+                hi     = t["hearing-impaired"] or false,
+            }
         end
     end
     return nil
@@ -105,21 +115,27 @@ end
 -- ----------------------------------------------------------------
 -- Apply remembered tracks for the current folder
 -- ----------------------------------------------------------------
+-- Idempotent: only touches a track when it isn't already the remembered one,
+-- so it can be called repeatedly (re-assert) without fighting itself or the user.
 local function apply_memory()
     local mem = current_folder and memory[current_folder]
     if not mem then return end
 
     if mem.audio then
         local id = find_track("audio", mem.audio)
-        if id then mp.set_property("aid", id) end
+        if id and mp.get_property_number("aid") ~= id then
+            mp.set_property_number("aid", id)
+        end
     end
 
     if mem.sub then
         if mem.sub.off then
-            mp.set_property("sid", "no")
+            if mp.get_property("sid") ~= "no" then mp.set_property("sid", "no") end
         else
             local id = find_track("sub", mem.sub)
-            if id then mp.set_property("sid", id) end
+            if id and mp.get_property_number("sid") ~= id then
+                mp.set_property_number("sid", id)
+            end
         end
     end
 end
@@ -145,20 +161,35 @@ end
 mp.register_event("file-loaded", function()
     current_folder = get_folder()
     settling = true
-    if settle_timer then settle_timer:kill(); settle_timer = nil end
+    for _, t in ipairs(pending_timers) do t:kill() end
+    pending_timers = {}
 
-    -- After track-selector has had its turn:
-    --   * known folder  -> re-apply the remembered choice
-    --   * new folder    -> capture whatever is playing now (the auto/default pick)
-    -- Then open the window where manual changes count.
-    mp.add_timeout(APPLY_DELAY, function()
-        if current_folder and memory[current_folder] then
-            apply_memory()
-        elseif current_folder then
-            save_current(true)   -- silent auto-capture for this folder's 1st episode
+    local mem = current_folder and memory[current_folder]
+    local has_mem = mem and next(mem) ~= nil   -- treats {} / [] empty entries as "no memory"
+
+    -- Tell track-selector.lua to stand aside when WE own this folder's choice,
+    -- so it doesn't race us by re-selecting the default (English) subtitle.
+    -- (It reads this flag in its own 0.2s callback, after this handler has run.)
+    mp.set_property_native("user-data/folder_track_memory_active", has_mem and true or false)
+
+    if has_mem then
+        -- Known folder: re-assert the remembered choice several times so any late
+        -- auto-selection can't win the race (belt-and-suspenders alongside the flag).
+        for _, at in ipairs(REASSERT_AT) do
+            pending_timers[#pending_timers + 1] = mp.add_timeout(at, apply_memory)
         end
-        settle_timer = mp.add_timeout(SETTLE, function() settling = false end)
-    end)
+        pending_timers[#pending_timers + 1] =
+            mp.add_timeout(REASSERT_AT[#REASSERT_AT] + SETTLE, function() settling = false end)
+    elseif current_folder then
+        -- New folder: capture whatever is playing (the auto/default pick) once,
+        -- after track-selector has settled — silent for this folder's 1st episode.
+        pending_timers[#pending_timers + 1] =
+            mp.add_timeout(REASSERT_AT[1], function() save_current(true) end)
+        pending_timers[#pending_timers + 1] =
+            mp.add_timeout(REASSERT_AT[1] + SETTLE, function() settling = false end)
+    else
+        settling = false
+    end
 end)
 
 -- Detect manual track changes (ignored during the settle window).

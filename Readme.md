@@ -231,6 +231,9 @@ Neither is "better" — it's taste. Toggle with `Ctrl+B`. The choice is remember
 | `Ctrl+↑` / `Ctrl+↓` | Speed ±0.5× |
 | `BS` | Reset speed to 1× |
 
+> **Volume is global & persistent:** the level you set carries across every file (it is *not*
+> saved per-file) and is remembered after you restart mpv.
+
 ### Picture & quality
 
 | Key | Action | See glossary |
@@ -412,6 +415,17 @@ Zooms the picture to fill the screen, cropping the edges (vs letterboxing). `Alt
 - **Skip-step** lets you define a custom seek amount (e.g. 34 s) and jump by it with a click —
   the prompt even accepts time math like `=1h07m02-1h06m02`.
 
+#### Global volume
+The master volume (and mute) is **global, not per-file**: set it once and every file plays at
+that level. It's removed from mpv's per-file `watch-later` data and persisted by
+`global_volume.lua` to `volume_state.json`, so it also survives a restart.
+
+#### History & folder exclusion
+The Recently-Played list (`Ctrl+H`) and the launch auto-resume can **ignore whole folders**.
+List them under `exclude=` in `script-opts/history.conf` (`;`-separated, recursive,
+case-insensitive, `~` allowed). Files inside an excluded folder are never recorded, never
+shown, and never auto-resumed — handy for a scratch folder you don't want cluttering history.
+
 ---
 
 ## 🔧 Custom Scripts
@@ -420,7 +434,7 @@ Zooms the picture to fill the screen, cropping the edges (vs letterboxing). `Alt
 |--------|---------|
 | `anime_profile_controller.lua` | The brain — detects content, applies profiles & shaders, builds menus |
 | `skip_intro.lua` | OP/ED/Intro/Preview skip with countdown; driven by `skip_intro.conf` (exact chapter-title match) |
-| `history.lua` | Recently-played menu + auto-resume last file on launch |
+| `history.lua` | Recently-played menu + auto-resume last file on launch; can **exclude folders** from history (configured in `script-opts/history.conf`) |
 | `chapter_editor.lua` | Add / rename / delete chapters; saved to a `.chapters` sidecar |
 | `slicer.lua` | Cut a clip (begin/end) with ffmpeg into an `_output/` folder |
 | `clock.lua` | On-screen clock (flash or toggle) |
@@ -436,6 +450,7 @@ Zooms the picture to fill the screen, cropping the edges (vs letterboxing). `Alt
 | `ambient-manager.lua` | Ambient-glow shader generator |
 | `track-selector.lua` | Smart audio/subtitle auto-selection (Japanese-aware) |
 | `folder_track_memory.lua` | Remembers the audio/subtitle you pick **per folder (series)** and re-applies it on the next episodes (matched by language + title) |
+| `global_volume.lua` | Keeps the master **volume + mute global and persistent** — the same level across every file and across mpv restarts |
 | `audio-visualizer.lua` | Visualizers for audio-only files |
 | `firequalizer15.lua` | 15-band audio equalizer |
 | `Up_Next.lua` | "Up Next" episode card near end of file |
@@ -481,8 +496,10 @@ Zooms the picture to fill the screen, cropping the edges (vs letterboxing). `Alt
 | `skip_intro_state.json` | Skip toggles (Intro/Opening/Ending on/off) |
 | `script-opts/firequalizer15.conf` | Equalizer band values |
 | `script-opts/zego_version.conf` | Config version — bump before pushing so other installs detect updates |
+| `script-opts/history.conf` | History options + **folders excluded** from history |
 | `history.json` | Recently-played list |
 | `track_memory.json` | Audio/subtitle choice remembered per folder (series) |
+| `volume_state.json` | Global volume + mute level (persists across restarts) |
 | `watch_later/` | Resume positions per file |
 
 ---

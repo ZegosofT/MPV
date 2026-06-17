@@ -348,6 +348,13 @@ mp.register_event("file-loaded", function()
     end
 
     mp.add_timeout(0.2, function()
+        -- Stand aside if folder_track_memory.lua has a remembered audio/sub choice
+        -- for this folder: it is the authority and applies it itself. Selecting here
+        -- would re-pick the default (slang) subtitle and race against that memory.
+        if mp.get_property_bool("user-data/folder_track_memory_active", false) then
+            msg.info("Smart Tracks: folder track-memory active -> deferring to it.")
+            return
+        end
         select_smart_tracks()
     end)
 end)
