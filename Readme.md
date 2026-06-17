@@ -44,7 +44,7 @@ settings — while still letting you override everything by hand.
 ## 🛠 How to Install & Customize
 
 > **Read this before using the build.** Most of it works out of the box, but a few things
-> point to locations that only exist on the original author's PC. This section lists
+> point to locations that only exist on my PC. This section lists
 > everything you must set up or edit yourself.
 
 ### 1. Install mpv + this config
@@ -442,7 +442,7 @@ shown, and never auto-resumed — handy for a scratch folder you don't want clut
 | `sub_scale.lua` | Resize ASS subs without losing your custom font |
 | `smart_prev.lua` | Restart-or-previous-episode logic |
 | `reload_mpv.lua` | Restart mpv and resume position (also launches Binds Input Test) |
-| `zego_update.lua` | Checks your GitHub for a newer config version; one-click update (downloads latest, no git) |
+| `zego_update.lua` | Checks my GitHub for a newer config version; one-click update (downloads latest, no git) |
 | `auto_anime_preset.lua` | Auto-apply a preset when a file is inside an `/anime/` folder |
 | `hdr_detect.lua` | Detect Windows HDR state, auto switch passthrough/tone-map |
 | `power_manager.lua` | Battery detection → low-power profile |
@@ -479,7 +479,7 @@ shown, and never auto-resumed — handy for a scratch folder you don't want clut
 ✕ Quit
 ```
 
-> The **Update** menu shows a "config update available" hint when your GitHub repo has a newer
+> The **Update** menu shows a "config update available" hint when my GitHub repo has a newer
 > version than what's installed. **Update Zego Config** downloads the latest config from GitHub
 > and applies it in one click (no git needed) — then reload with `Ctrl+R`.
 
@@ -512,5 +512,5 @@ shown, and never auto-resumed — handy for a scratch folder you don't want clut
 - Upscalers: Anime4K, FSRCNNX, NNEDI3, RAVU, FSRCNN, ArtCNN, SSimSuperRes/Downscaler, KrigBilateral
 - Player: [mpv](https://mpv.io/)
 
-This is a personal, customized fork — keybindings and paths are tailored to the author's
+This is a personal, customized fork — keybindings and paths are tailored to my specific
 system and may need editing for your own setup.
