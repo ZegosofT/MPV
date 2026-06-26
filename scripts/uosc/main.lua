@@ -1107,10 +1107,9 @@ function create_default_menu_items()
         },
 
         {
-            title = 'Binds',
-            icon = 'keyboard',
-            value = [[run cmd /c start "" "%APPDATA%\\mpv\\input.conf"]],
-            hint = 'Shift+Alt+B',
+            title = 'Options',
+            icon = 'tune',
+            value = 'script-binding options_gui/open',
         },
 
 

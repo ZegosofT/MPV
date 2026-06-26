@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mpv — Options</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Left: page menu -->
+    <aside class="sidebar">
+      <div class="sidebar-title">Options</div>
+      <nav id="menu" class="menu"></nav>
+    </aside>
+
+    <!-- Right: header + body + footer -->
+    <main class="content">
+      <header class="content-head">
+        <h1 id="panel-title">Keybinds</h1>
+        <div id="kb-tools" class="kb-tools">
+          <input id="filter" type="search" placeholder="Filter — key, command or keyword…" autocomplete="off">
+          <button id="new-bind" class="btn primary">+ New bind</button>
+          <button id="open-raw" class="btn-ghost" title="Open input.conf directly in a text editor (rarely needed)">Edit raw file</button>
+        </div>
+      </header>
+
+      <div class="body-scroll">
+        <!-- Keybinds view -->
+        <div id="keybinds-view">
+          <table class="binds">
+            <thead>
+              <tr>
+                <th class="col-key">Key</th>
+                <th class="col-cmd">Command</th>
+                <th class="col-kw">Keywords <span class="hint">(personal · comma-separated)</span></th>
+                <th class="col-act"></th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <div id="empty" class="empty" hidden>No bind matches your filter.</div>
+        </div>
+
+        <!-- Settings view (generated from the schema) -->
+        <div id="settings-view" hidden></div>
+      </div>
+
+      <footer class="content-foot">
+        <span id="count"></span>
+        <span id="paths" class="paths"></span>
+        <button id="reload-only" class="btn"
+                title="Reload mpv now to apply changes, but keep this window open.">Reload</button>
+        <button id="reload-close" class="btn primary"
+                title="Changes are saved as you make them. This reloads mpv (if open) so they apply, then closes.">
+          Reload &amp; Close
+        </button>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Add / edit bind dialog -->
+  <div id="modal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <h2 id="modal-title">New bind</h2>
+
+      <label class="field">
+        <span>Key</span>
+        <div class="key-field">
+          <input id="m-key" type="text" placeholder="e.g. CTRL+ALT+x" autocomplete="off" spellcheck="false">
+          <button id="m-capture" type="button" class="btn">🎯 Capture</button>
+        </div>
+      </label>
+
+      <label class="field">
+        <span>Command</span>
+        <input id="m-cmd" type="text" placeholder='e.g. show-text "hello"' autocomplete="off" spellcheck="false">
+      </label>
+
+      <div id="m-warn" class="warn"></div>
+
+      <div class="modal-actions">
+        <button id="m-cancel" type="button" class="btn">Cancel</button>
+        <button id="m-save" type="button" class="btn primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

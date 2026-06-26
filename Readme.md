@@ -24,7 +24,8 @@ settings — while still letting you override everything by hand.
    - [Resolution tiers](#resolution-tiers)
    - [Custom presets (Zego Presets)](#custom-presets-zego-presets)
    - [Fidelity vs Performance](#fidelity-vs-performance-ctrlb)
-5. [Keyboard & Mouse Shortcuts](#-keyboard--mouse-shortcuts)
+5. [The Options Window](#-the-options-window)  ⬅ **new**
+6. [Keyboard & Mouse Shortcuts](#-keyboard--mouse-shortcuts)
    - [Mouse](#mouse)
    - [Playback & seeking](#playback--seeking)
    - [Volume & speed](#volume--speed)
@@ -33,11 +34,11 @@ settings — while still letting you override everything by hand.
    - [Subtitles](#subtitles)
    - [Tools & windows](#tools--windows)
    - [Number row (color & UI)](#number-row-color--ui)
-6. [Glossary — What Every Option Means](#-glossary--what-every-option-means)
-7. [Custom Scripts](#-custom-scripts)
-8. [The Right-Click Menu](#-the-right-click-menu)
-9. [Where Settings Are Saved](#-where-settings-are-saved)
-10. [Credits](#-credits)
+7. [Glossary — What Every Option Means](#-glossary--what-every-option-means)
+8. [Custom Scripts](#-custom-scripts)
+9. [The Right-Click Menu](#-the-right-click-menu)
+10. [Where Settings Are Saved](#-where-settings-are-saved)
+11. [Credits](#-credits)
 
 ---
 
@@ -180,6 +181,10 @@ whole pipeline:
 | **Off**          | Neutral | Disables custom processing |
 | **HDR Toggle**   | — | Switch HDR passthrough ↔ tone-mapping |
 
+> You can **assign any preset to a folder** (and build your own presets) in the
+> [Options window](#-the-options-window) — files then enhance themselves on open. A folder with
+> **no rule plays raw** (no enhancement); use `<` to pick one by hand, `>` to toggle it off/on.
+
 ### Fidelity vs Performance (`Ctrl+B`)
 
 For **anime**, two philosophies:
@@ -187,6 +192,45 @@ For **anime**, two philosophies:
 - **Performance (Anime4K):** aggressive reconstruction — sharper, "cleaner", more processed.
 
 Neither is "better" — it's taste. Toggle with `Ctrl+B`. The choice is remembered per resolution.
+
+---
+
+## 🪟 The Options Window
+
+Besides the in-player right-click menu, this build ships a **desktop "Options" window** — a
+real settings app (think VLC / MPC-BE preferences) for the whole config. Open it from
+**right-click → Options** (it launches without a console).
+
+> **First run only:** double-click `tools/options/launch.bat` once — it installs the single
+> dependency (`pywebview`). After that the menu opens it instantly. Requires Python on the PC.
+
+Left sidebar = pages:
+
+- **Keybinds** — every binding from `input.conf` in a filterable table. Add / edit / **rebind**
+  (with **🎯 Capture** — press a shortcut, AZERTY-aware) / delete. Edits are written back to
+  `input.conf` with an automatic `.bak` backup, keeping your comments & sections. Tag any bind
+  with personal **keywords** to find it fast.
+- **Video Enhancement** — the heart of the build:
+  - **Presets** — pick a built-in (Anime 1440P+, Movie 720P, Gaming…) or **create your own**
+    (*Save as new* / *Update preset* / *Delete*), plus the **Auto-apply by folder** table (below).
+  - Global settings (SD mode, HDR), then the preset-controlled ones: anime mode, Fidelity
+    engine, live-action profile, adaptive sharpen, and **Anime4K mode/quality per resolution**.
+- **Audio** — 7.1 upmix, Night mode (DRC), Spatial.
+- **Playback** — Skip intro/outro (chapter names + countdowns), History exclusions.
+- **About & Updates** — mpv version + **Update mpv**, the credits, and **Check / Update config**
+  (pulls the latest from GitHub).
+
+A **Reload & Close** button (bottom-right) reloads the running mpv so changes apply (each
+setting is saved to its config file as you change it).
+
+### Auto-apply a preset per folder
+
+In **Video Enhancement → Presets → Auto-apply by folder**, map folders to presets — e.g.
+`O:\Anime → Anime 1440P+`, `O:\Films → Movie 1440P+`, `O:\Anime\old 720p → Anime 720P`. When
+you open a file, the **most specific** matching folder wins and its preset is applied
+automatically. **A folder in no rule plays raw** — decoded & scaled only, no enhancement, like
+a normal player. Use **`<`** to pick a preset by hand for the current video, and **`>`** to
+toggle the upscaler off ↔ back to the last preset.
 
 ---
 
@@ -256,7 +300,8 @@ Neither is "better" — it's taste. Toggle with `Ctrl+B`. The choice is remember
 | `P` | Cycle aspect ratio override | |
 | `Alt+E` / `Ctrl+Alt+€` | Pan-scan zoom in / out | [↗](#pan-scan) |
 | `D` | Open the Anime Build options menu | |
-| `<` | Open the Zego Presets menu | |
+| `<` | Open the **Enhancement Presets** menu (built-in + your own) | |
+| `>` | Toggle the upscaler off ↔ back to the last preset | |
 
 ### Audio
 
@@ -443,7 +488,8 @@ shown, and never auto-resumed — handy for a scratch folder you don't want clut
 | `smart_prev.lua` | Restart-or-previous-episode logic |
 | `reload_mpv.lua` | Restart mpv and resume position (also launches Binds Input Test) |
 | `zego_update.lua` | Checks my GitHub for a newer config version; one-click update (downloads latest, no git) |
-| `auto_anime_preset.lua` | Auto-apply a preset when a file is inside an `/anime/` folder |
+| `auto_anime_preset.lua` | **Auto-apply a preset per folder** (rules set in the Options window); a file in no rule plays raw |
+| `options_gui.lua` | Launches the desktop **Options** window (windowless, from the right-click menu) |
 | `hdr_detect.lua` | Detect Windows HDR state, auto switch passthrough/tone-map |
 | `power_manager.lua` | Battery detection → low-power profile |
 | `vsr_auto.lua` | Nvidia RTX VSR control |
@@ -470,7 +516,7 @@ shown, and never auto-resumed — handy for a scratch folder you don't want clut
 📂 Playlist
 🧭 Navigation        ▸
 ──────────────
-⌨ Binds                 (opens input.conf)
+🎚 Options               (the desktop settings window — see above)
 🔧 Utils             ▸
 ⌨ Binds Input Test      (shows what each key is bound to)
 ⬇ Update            ▸   Update MPV (player) · Update Zego Config (this config from GitHub) · Check now
@@ -500,6 +546,9 @@ shown, and never auto-resumed — handy for a scratch folder you don't want clut
 | `history.json` | Recently-played list |
 | `track_memory.json` | Audio/subtitle choice remembered per folder (series) |
 | `volume_state.json` | Global volume + mute level (persists across restarts) |
+| `preset_folders.json` | Folder → preset auto-apply rules (Options window) |
+| `options_presets.json` | Your own custom presets (created in the Options window) |
+| `bind_keywords.json` | Personal keywords you tag keybinds with (Options window) |
 | `watch_later/` | Resume positions per file |
 
 ---

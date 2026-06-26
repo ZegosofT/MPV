@@ -44,6 +44,7 @@ local user_nnedi = {
 -- STATE
 -------------------------------------------------
 local anime_mode = "auto"
+local auto_anime_paths = {}   -- extra folders/keywords counted as anime in AUTO mode (set via the Options GUI)
 local current_profile = ""
 local shaders_master_switch = true
 
@@ -360,10 +361,24 @@ local function load_anime_mode()
         local si = l:match("skip_intro_enabled=(%S+)")
         if si then skip_intro_enabled = (si == "true") end
 
+        local aap = l:match("auto_anime_paths=(.+)")
+        if aap then
+            auto_anime_paths = {}
+            for item in aap:gmatch("[^;]+") do
+                item = item:gsub("^%s*(.-)%s*$", "%1")
+                if item ~= "" then auto_anime_paths[#auto_anime_paths + 1] = item end
+            end
+        end
+
         local cp = l:match("custom_preset=(.+)")
         if cp then
             current_custom_preset = (cp ~= "" and cp ~= "nil") and cp or nil
         end
+
+        -- [FIX] manual_normal_profile is saved but was never reloaded, so Movie/
+        -- Gaming presets lost their locked profile (4K-Native, Gaming…) on reload.
+        local mnp = l:match("manual_normal_profile=(%S+)")
+        if mnp then manual_normal_profile = (mnp ~= "nil") and mnp or nil end
 		
     end
     f:write("custom_preset=" .. tostring(current_custom_preset or "nil") .. "\n")
@@ -404,6 +419,7 @@ local function save_anime_mode()
         f:write("up_next_enabled=" .. tostring(up_next_enabled) .. "\n")
         f:write("skip_intro_enabled=" .. tostring(skip_intro_enabled) .. "\n")
         f:write("custom_preset=" .. tostring(current_custom_preset or "nil") .. "\n")
+        f:write("auto_anime_paths=" .. table.concat(auto_anime_paths, ";") .. "\n")
 		
         f:close() 
     end
@@ -489,9 +505,17 @@ end
 local function is_anime_folder(p)
     if not p then return false end
     p = p:lower()
-    return p:find("/anime/") or p:find("\\anime\\")
-        or p:find("donghua") or p:find("cartoon") 
-        or p:find("animation") or p:find("3d_anime")
+    if p:find("/anime/") or p:find("\\anime\\")
+        or p:find("donghua") or p:find("cartoon")
+        or p:find("animation") or p:find("3d_anime") then
+        return true
+    end
+    -- user-configured folders/keywords from the Options GUI (plain substring match)
+    for _, kw in ipairs(auto_anime_paths) do
+        local k = kw:lower()
+        if k ~= "" and p:find(k, 1, true) then return true end
+    end
+    return false
 end
 
 -- [UPDATED] Live Action now checks Path AND Title
@@ -1325,7 +1349,7 @@ local function get_zego_menu_json()
 
     local already_made = {
         {
-            title = "Profil Animé",
+            title = "Anime Profile",
             icon = "animation",
             items = {
                 {
@@ -1358,19 +1382,19 @@ local function get_zego_menu_json()
             }
         },
         {
-            title = "Profil Normal",
+            title = "Normal Profile",
             icon = "movie",
             items = {
                 {
-                    title = "Mode Normal",
+                    title = "Normal Mode",
                     icon = "tv_off",
                     items = {
                         { title = "Force OFF / Native HQ", value = "script-binding anime-mode-off", active = s_off and manual_normal_profile == nil },
-                        { title = "Effacer le profil manuel", value = "script-message zego-clear-normal-profile", active = (manual_normal_profile ~= nil) }
+                        { title = "Clear manual profile", value = "script-message zego-clear-normal-profile", active = (manual_normal_profile ~= nil) }
                     }
                 },
                 {
-                    title = "Profils SD",
+                    title = "SD Profiles",
                     icon = "sd",
                     items = {
                         { title = "HQ-SD-Clean", value = "script-message zego-apply-profile HQ-SD-Clean", active = (manual_normal_profile == "HQ-SD-Clean") or (manual_normal_profile == nil and p == "HQ-SD-Clean") },
@@ -1379,7 +1403,7 @@ local function get_zego_menu_json()
                     }
                 },
                 {
-                    title = "Profils HD",
+                    title = "HD Profiles",
                     icon = "hd",
                     items = {
                         { title = "HQ-HD-NNEDI", value = "script-message zego-apply-profile HQ-HD-NNEDI", active = (manual_normal_profile == "HQ-HD-NNEDI") or (manual_normal_profile == nil and p == "HQ-HD-NNEDI") },
@@ -1470,9 +1494,39 @@ end
 
 
 
+-- User presets (from the Options GUI) are CACHED and refreshed MANUALLY via the
+-- "<" menu's Refresh button — not read on every open (no file I/O each time).
+local user_presets = { names = {} }
+function user_presets.reload()
+    user_presets.names = {}
+    local jf = mp.command_native({ "expand-path", "~~/options_presets.json" })
+    local f = io.open(jf, "r")
+    if not f then return end
+    local data = utils.parse_json(f:read("*a"))
+    f:close()
+    if type(data) == "table" then
+        for name in pairs(data) do user_presets.names[#user_presets.names + 1] = name end
+        table.sort(user_presets.names)
+    end
+end
+user_presets.reload()  -- populate once at startup
+
 local function get_zego_custom_menu_json()
     local custom_items = {
+        { title = "🔄 Refresh (re-read custom presets)",
+          value = "script-message-to anime_profile_controller zego-refresh-presets", italic = true },
         { title = "Current preset: " .. (current_custom_preset or "None"), value = "ignore", bold = true },
+        { title = "⏹ Off", value = "script-binding zego-custom-off", active = (current_custom_preset == "Off") or (current_custom_preset == nil) },
+        {
+            title = "🌈 HDR Toggle",
+            icon = "hdr_auto",
+            separator = true,
+            items = {
+                { title = "HDR Auto", value = "script-binding zego-hdr-auto", active = (user_hdr_toggle == "auto") },
+                { title = "HDR ON", value = "script-binding zego-hdr-on", active = (user_hdr_toggle == "on") },
+                { title = "HDR OFF", value = "script-binding zego-hdr-off", active = (user_hdr_toggle == "off") }
+            }
+        },
         { title = "🎌 Anime 1440P+", value = "script-binding zego-custom-anime-1440p", active = (current_custom_preset == "Anime 1440P+") },
         { title = "🎌 Anime 1080P", value = "script-binding zego-custom-anime-1080p", active = (current_custom_preset == "Anime 1080P") },
         { title = "🎌 Anime 720P", value = "script-binding zego-custom-anime-720p", active = (current_custom_preset == "Anime 720P") },
@@ -1481,21 +1535,18 @@ local function get_zego_custom_menu_json()
         { title = "🎥 Movie 1080P", value = "script-binding zego-custom-live-1080p", active = (current_custom_preset == "Movie 1080P") },
         { title = "🎥 Movie 720P", value = "script-binding zego-custom-live-720p", active = (current_custom_preset == "Movie 720P") },
         { title = "🎮 Gaming", value = "script-binding zego-custom-gaming", active = (current_custom_preset == "Gaming") },
-        { title = "⏹ Off", value = "script-binding zego-custom-off", active = (current_custom_preset == "Off") or (current_custom_preset == nil) },
-        {
-            title = "🌈 HDR Toggle",
-            icon = "hdr_auto",
-            items = {
-                { title = "HDR Auto", value = "script-binding zego-hdr-auto", active = (user_hdr_toggle == "auto") },
-                { title = "HDR ON", value = "script-binding zego-hdr-on", active = (user_hdr_toggle == "on") },
-                { title = "HDR OFF", value = "script-binding zego-hdr-off", active = (user_hdr_toggle == "off") }
-            }
-        }
     }
+    for _, name in ipairs(user_presets.names) do
+        custom_items[#custom_items + 1] = {
+            title = "★ " .. name,
+            value = 'script-message-to anime_profile_controller zego-folder-apply "' .. name .. '"',
+            active = (current_custom_preset == name),
+        }
+    end
 
     return utils.format_json({
         type = "menu",
-        title = "Zego Presets",
+        title = "Enhancement Presets",
         items = custom_items
     })
 end
@@ -1514,6 +1565,12 @@ end)
 
 
 mp.add_key_binding(nil, "open-zego-custom-menu", function()
+    mp.commandv("script-message-to", "uosc", "open-menu", get_zego_custom_menu_json())
+end)
+
+-- Manual refresh: re-read options_presets.json into the cache, then re-open.
+mp.register_script_message("zego-refresh-presets", function()
+    user_presets.reload()
     mp.commandv("script-message-to", "uosc", "open-menu", get_zego_custom_menu_json())
 end)
 
@@ -1536,6 +1593,108 @@ mp.register_script_message("zego-apply-custom-profile", function(...)
     local name = table.concat(args, " ")
     if name == "" then name = nil end
     apply_custom_profile(name)
+end)
+
+-- ============================================================================
+-- Per-folder auto-apply support (driven by auto_anime_preset.lua / Options GUI)
+-- ============================================================================
+-- Apply a USER preset (made in the Options GUI) live, from its saved bundle in
+-- ~~/options_presets.json. Each bundle is a list of {file, key, value} writes.
+local function apply_user_preset(name)
+    local jf = mp.command_native({ "expand-path", "~~/options_presets.json" })
+    local f = io.open(jf, "r")
+    if not f then return end
+    local data = utils.parse_json(f:read("*a"))
+    f:close()
+    local writes = (type(data) == "table") and data[name]
+    if type(writes) ~= "table" then return end
+
+    for _, w in ipairs(writes) do
+        local file, key, val = w[1], w[2], w[3]
+        if file == "anime-mode.conf" then
+            if     key == "anime_mode"            then anime_mode = val
+            elseif key == "fidelity"              then anime_fidelity = (val == "true")
+            elseif key == "manual_normal_profile" then manual_normal_profile = (val ~= "nil") and val or nil
+            elseif key == "sharpen_enabled"       then sharpen_enabled = (val == "true")
+            elseif key == "sd_override"           then sd_manual_override = (val == "true")
+            elseif key == "hd_override"           then hd_manual_override = (val == "true")
+            end
+        elseif file == "anime4k.conf" then
+            local mt = key:match("^mode_(%w+)$")
+            if mt and user_anime4k[mt] then user_anime4k[mt].mode = val end
+            local qt = key:match("^quality_(%w+)$")
+            if qt and user_anime4k[qt] then user_anime4k[qt].quality = val end
+        end
+    end
+    current_custom_preset = name
+    save_anime4k()
+    save_anime_mode()
+    force_refresh_video_pipeline()
+end
+
+-- A folder rule matched -> apply its preset (enhancement ON so it shows).
+mp.register_script_message("zego-folder-apply", function(...)
+    local name = table.concat({ ... }, " ")
+    if name == "" then return end
+    local builtin = {
+        ["Off"]=true, ["Anime 1440P+"]=true, ["Anime 1080P"]=true, ["Anime 720P"]=true,
+        ["Anime Legacy"]=true, ["Movie 1440P+"]=true, ["Movie 1080P"]=true,
+        ["Movie 720P"]=true, ["Gaming"]=true,
+    }
+    shaders_master_switch = true
+    if builtin[name] then apply_custom_profile(name) else apply_user_preset(name) end
+end)
+
+-- No folder rule matched -> "raw": master shaders OFF, no shaders at all.
+mp.register_script_message("zego-folder-raw", function()
+    shaders_master_switch = false
+    current_custom_preset = "Off"
+    manual_normal_profile = nil
+    sd_manual_override = false
+    hd_manual_override = false
+    save_anime_mode()
+    mp.set_property("glsl-shaders", "")
+    sync_state()
+    update_uosc_menu()
+end)
+
+-- ">" key: toggle the upscaler OFF (raw) <-> back to the last active preset.
+local last_active_preset = nil
+mp.add_key_binding(nil, "toggle-upscaler", function()
+    if shaders_master_switch then
+        -- currently ON -> remember the active preset, then go raw (no upscaler)
+        if current_custom_preset and current_custom_preset ~= "Off" and current_custom_preset ~= "" then
+            last_active_preset = current_custom_preset
+        end
+        shaders_master_switch = false
+        current_custom_preset = "Off"
+        manual_normal_profile = nil
+        sd_manual_override = false
+        hd_manual_override = false
+        save_anime_mode()
+        mp.set_property("glsl-shaders", "")
+        sync_state()
+        update_uosc_menu()
+        show_temp_osd(C.YELLOW .. "Upscaler: " .. C.RED .. "OFF", 2)
+    else
+        -- currently OFF -> restore the remembered preset
+        shaders_master_switch = true
+        local name = last_active_preset
+        local builtin = {
+            ["Off"]=true, ["Anime 1440P+"]=true, ["Anime 1080P"]=true, ["Anime 720P"]=true,
+            ["Anime Legacy"]=true, ["Movie 1440P+"]=true, ["Movie 1080P"]=true,
+            ["Movie 720P"]=true, ["Gaming"]=true,
+        }
+        if name and builtin[name] then
+            apply_custom_profile(name)
+        elseif name and name ~= "" then
+            apply_user_preset(name)
+        else
+            force_refresh_video_pipeline()
+        end
+        show_temp_osd(C.YELLOW .. "Upscaler: " .. C.GREEN .. "ON"
+            .. (name and (C.WHITE .. " (" .. name .. ")") or ""), 2)
+    end
 end)
 
 mp.register_script_message("zego-set-hdr-mode", function(mode)
