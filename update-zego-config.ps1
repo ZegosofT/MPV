@@ -23,10 +23,28 @@ try {
     New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
     Write-Host "[1/3] Downloading latest config..."
-    Invoke-WebRequest -Uri $zipUrl -OutFile $zip -UseBasicParsing
+    # PS 5.1: a visible progress bar throttles the download to a crawl, so
+    # silence it and stream the bytes ourselves (fast + a simple live counter).
+    $ProgressPreference = 'SilentlyContinue'
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $req  = [System.Net.HttpWebRequest]::Create($zipUrl)
+    $req.UserAgent = 'zego-config-updater'
+    $resp = $req.GetResponse()
+    $in   = $resp.GetResponseStream()
+    $out  = [System.IO.File]::Create($zip)
+    $buf  = [byte[]]::new(1MB)
+    $sum  = 0; $mark = 0
+    while (($n = $in.Read($buf, 0, $buf.Length)) -gt 0) {
+        $out.Write($buf, 0, $n)
+        $sum += $n
+        if (($sum - $mark) -ge 4MB) { $mark = $sum; Write-Host ("`r      {0} MB downloaded..." -f [int]($sum / 1MB)) -NoNewline }
+    }
+    $out.Close(); $in.Close(); $resp.Close()
+    Write-Host ("`r      {0} MB downloaded.            " -f [int]($sum / 1MB))
 
     Write-Host "[2/3] Extracting..."
-    Expand-Archive -Path $zip -DestinationPath $tmp -Force
+    Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $tmp)
 
     $src = Join-Path $tmp $extractedName
     if (-not (Test-Path $src)) {
