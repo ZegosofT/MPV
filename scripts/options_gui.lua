@@ -1,27 +1,37 @@
 -- [[
 --    options_gui.lua
 --    Opens the desktop Options / Keybinds editor (tools/options/app.py) in its
---    own native window, launched WITHOUT a console window (via pyw.exe, the
---    windowless Python launcher) and detached so it neither blocks mpv nor
---    closes with it.
+--    own native window, launched WITHOUT a console window and detached so it
+--    neither blocks mpv nor closes with it.
+--
+--    A self-contained Python runtime is bundled in tools/options/runtime, so the
+--    window works out of the box with NO Python install and NO dependencies.
+--    If that folder is missing (e.g. someone cloned only the source), it falls
+--    back to the system windowless launcher `pyw`.
 --
 --    Trigger:
---      * uosc menu -> Binds -> Keybinds Editor
+--      * uosc right-click menu -> Options
 --      * or bind a key to  script-binding options_gui/open  in input.conf
---
---    First-time setup: run tools/options/launch.bat ONCE so it installs the
---    pywebview dependency (that step wants a visible console). After that this
---    windowless launch works.
 -- ]]
 
 local mp = require 'mp'
+local utils = require 'mp.utils'
 
 local APP = mp.command_native({ "expand-path", "~~/tools/options/app.py" })
+local PYW = mp.command_native({ "expand-path", "~~/tools/options/runtime/pythonw.exe" })
+
+local function exists(path)
+    return path ~= nil and utils.file_info(path) ~= nil
+end
 
 local function open_options()
-    -- `run` launches detached; `pyw` (C:\Windows\pyw.exe) is the windowless
-    -- Python launcher, so no command prompt appears.
-    mp.commandv("run", "pyw", APP)
+    if exists(PYW) then
+        -- Bundled, self-contained Python (windowless): no install needed.
+        mp.commandv("run", PYW, APP)
+    else
+        -- Source-only fallback: system windowless Python launcher.
+        mp.commandv("run", "pyw", APP)
+    end
     mp.osd_message("Opening Options…", 1)
 end
 

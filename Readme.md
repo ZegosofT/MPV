@@ -201,8 +201,10 @@ Besides the in-player right-click menu, this build ships a **desktop "Options" w
 real settings app (think VLC / MPC-BE preferences) for the whole config. Open it from
 **right-click → Options** (it launches without a console).
 
-> **First run only:** double-click `tools/options/launch.bat` once — it installs the single
-> dependency (`pywebview`). After that the menu opens it instantly. Requires Python on the PC.
+> **No setup needed.** A self-contained Python runtime is bundled in `tools/options/runtime`,
+> so the Options window just works — **no Python install, no dependencies**. Just drop the
+> config into `%APPDATA%\mpv` and open it. *(Developers who clone only the source without that
+> folder can double-click `tools/options/launch.bat` once — it falls back to the system Python.)*
 
 Left sidebar = pages:
 
