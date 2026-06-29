@@ -1,0 +1,33 @@
+How to install ffmpeg for the mpv clip Slicer
+=============================================
+
+mpv plays all your videos using its OWN built-in ffmpeg libraries, so you do
+NOT need to install anything for normal playback.
+
+The ONLY feature that needs the standalone ffmpeg.exe is the clip Slicer
+(Ctrl+Alt+C), which cuts a lossless clip into an "_output" folder.
+
+You only need to do this ONCE. Pick whichever option you prefer:
+
+
+OPTION A - Automatic (easiest)
+------------------------------
+  1. In mpv, open the clip menu (Ctrl+Alt+C).
+  2. Mark BEGIN, mark END, then press "Save clip".
+  3. A window appears asking to install ffmpeg -> click "Yes".
+  It downloads ffmpeg and you are done. Press "Save clip" again.
+
+
+OPTION B - Manual download
+--------------------------
+  1. Go to:  https://github.com/BtbN/FFmpeg-Builds/releases
+     (fast GitHub mirror; or the official site https://ffmpeg.org/download.html )
+  2. Download "ffmpeg-master-latest-win64-gpl.zip" (a Windows build).
+  3. Open the zip, enter the "bin" folder, and copy "ffmpeg.exe".
+  4. Paste ffmpeg.exe into ANY ONE of these locations:
+       - this folder:            <your mpv config>\tools\bin\
+       - next to your mpv.exe
+       - any folder on your Windows PATH
+  5. Back in mpv, press "Save clip" again.
+
+That's it - the Slicer finds ffmpeg automatically.

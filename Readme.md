@@ -14,7 +14,7 @@ settings — while still letting you override everything by hand.
 
 1. [How to Install & Customize](#-how-to-install--customize)  ⬅ **read this first**
    - [1. Install mpv + this config](#1-install-mpv--this-config)
-   - [2. Install ffmpeg (for the Slicer)](#2-install-ffmpeg-for-the-slicer)
+   - [2. ffmpeg for the Slicer (on demand)](#2-ffmpeg-for-the-slicer-auto-installed-on-demand)
    - [3. Edit the machine-specific paths](#3-edit-the-machine-specific-paths)
    - [4. Keyboard layout (AZERTY)](#4-keyboard-layout-azerty)
 2. [Quick Start](#-quick-start)
@@ -59,34 +59,26 @@ settings — while still letting you override everything by hand.
 3. Copy this whole config folder into **`%APPDATA%\mpv`**
    (paste `%APPDATA%\mpv` into the File Explorer address bar to open it).
 
-### 2. Install ffmpeg (for the Slicer)
+### 2. ffmpeg for the Slicer (auto-installed on demand)
 
-**ffmpeg is the only thing this build needs on your PATH.** The **Slicer** (`Ctrl+Alt+C` —
-cut a clip to an `_output/` folder) calls it:
+mpv plays everything with its **built-in** ffmpeg libraries — nothing to install for normal
+use. The **only** feature that needs the standalone `ffmpeg.exe` is the **Slicer**
+(`Ctrl+Alt+C` — cut a **lossless** clip to an `_output/` folder).
 
-1. Download it from the official site: [ffmpeg.org/download.html](https://ffmpeg.org/download.html)
-   (under Windows, grab a Windows build — "essentials" is enough).
-2. Extract it somewhere permanent, e.g. `C:\ffmpeg`. Inside you'll find `C:\ffmpeg\bin\ffmpeg.exe`.
-3. **Add `C:\ffmpeg\bin` to your PATH:**
-   - Press `Win`, type **"environment variables"**, open *Edit the system environment variables*.
-   - Click **Environment Variables…** → under *User variables* select **Path** → **Edit** → **New**.
-   - Paste the folder that contains `ffmpeg.exe` (e.g. `C:\ffmpeg\bin`), then click **OK** on every window.
-4. Open a **new** terminal and run `ffmpeg -version` to confirm (and restart mpv so it sees the new PATH).
-
-> Shinchiro mpv builds often already include `ffmpeg.exe` next to `mpv.exe` — if that folder
-> is on your PATH, the Slicer works with no extra download.
-> If you'd rather not touch PATH, open `scripts/slicer.lua` and set
-> `local FFMPEG = "C:/full/path/to/ffmpeg.exe"`.
+The first time you save a clip without ffmpeg present, mpv pops a small window offering to
+**download & install it in one click** (~105 MB, one-time, into `tools/bin/`). Prefer to do it
+by hand? Click **No** and it opens `tools/bin/ffmpeg-install.txt` with the manual steps. The
+Slicer looks for ffmpeg in `tools/bin/`, then next to your `mpv.exe`, then on your PATH.
 
 ### 3. Edit the machine-specific paths
 
-These point to locations unique to each user. Open each file and change the marked value:
+Good news: **almost nothing needs editing.** yt-dlp (YouTube) and the mpv updater are
+auto-detected next to `mpv.exe`, so they just work. The only genuinely personal value is
+optional:
 
 | File | What to set |
 |------|-------------|
-| `mpv.conf` — `ytdl_hook-ytdl_path` (near the top) | Path to **your** `yt-dlp.exe`, needed for YouTube / streaming. Set it to your yt-dlp, **or delete that line** if yt-dlp is on your PATH or sits next to `mpv.exe`. Without it, YouTube links won't play. |
-| `script-modules/file-browser-addons/favorite-folder.lua` | `FAVORITE` — your "home" folder for the `f` shortcut in the file browser (e.g. your anime/movies drive). |
-| `update-mpv.ps1` | `$updater` — full path to **your** mpv updater `.bat`. Only needed for the **Update MPV** button. (mpv.exe is auto-detected via the App Paths registry.) |
+| `script-modules/file-browser-addons/favorite-folder.lua` | `FAVORITE` — your "home" folder for the `f` shortcut in the file browser (e.g. your anime/movies drive). **Optional.** |
 
 Everything else inside the config folder uses portable paths (`%APPDATA%\mpv` and mpv's `~~/`)
 and needs no editing.
@@ -336,7 +328,7 @@ toggle the upscaler off ↔ back to the last preset.
 | Key | Action |
 |-----|--------|
 | `e` | Open the in-player file browser |
-| `L` | Show the current file in its folder (Windows Explorer) |
+| `Ctrl+O` | Show the current file in its folder (Windows Explorer) |
 | `w` | Open playlist |
 | `c` | Flash the clock for 2 s |
 | `Alt+C` | Toggle the clock (stays on) |

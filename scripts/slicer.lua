@@ -15,13 +15,52 @@ local mp     = require 'mp'
 local msg    = require 'mp.msg'
 local utils  = require 'mp.utils'
 
--- ====== CONFIG ======
--- Path to ffmpeg. Default "ffmpeg" uses the system PATH (recommended:
--- install ffmpeg and add its bin folder to PATH - see the README).
--- If ffmpeg is NOT in your PATH, set the absolute path here instead, e.g.:
---   local FFMPEG = "C:/ffmpeg/bin/ffmpeg.exe"
-local FFMPEG = "ffmpeg"
--- ====================
+-- ----------------------------------------------------------------
+-- Locate ffmpeg (REQUIRED). Priority:
+--   1. installed on demand into:  ~~/tools/bin/ffmpeg.exe
+--   2. next to mpv.exe (via the App Paths registry)
+--   3. "ffmpeg" on the system PATH
+-- The Slicer uses lossless stream copy and needs the real ffmpeg.exe;
+-- there is intentionally no degraded fallback.
+-- ----------------------------------------------------------------
+local function file_exists(p)
+    return p ~= nil and utils.file_info(p) ~= nil
+end
+
+local _ffmpeg  -- cached after first resolve
+local function resolve_ffmpeg()
+    if _ffmpeg ~= nil then return _ffmpeg end
+
+    local bundled = mp.command_native({ "expand-path", "~~/tools/bin/ffmpeg.exe" })
+    if file_exists(bundled) then _ffmpeg = bundled; return _ffmpeg end
+
+    -- Next to mpv.exe, found through the App Paths registry key.
+    local res = mp.command_native({
+        name = "subprocess",
+        args = { "reg", "query",
+            "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\mpv.exe", "/ve" },
+        capture_stdout = true,
+        playback_only = false,
+    })
+    if res and res.stdout then
+        local exe = res.stdout:match("REG_SZ%s+([^\r\n]+)")
+        if exe then
+            local dir  = exe:gsub("%s+$", ""):match("^(.*)[/\\]")
+            local cand = dir and (dir .. "\\ffmpeg.exe")
+            if file_exists(cand) then _ffmpeg = cand; return _ffmpeg end
+        end
+    end
+
+    _ffmpeg = "ffmpeg"  -- last resort: PATH
+    return _ffmpeg
+end
+
+-- Opens the bundled installer (tools/bin/install-ffmpeg.ps1): a small window
+-- that offers a one-click download of ffmpeg, or the manual steps on "No".
+local function launch_ffmpeg_installer()
+    local ps = mp.command_native({ "expand-path", "~~/tools/bin/install-ffmpeg.ps1" })
+    mp.commandv("run", "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps)
+end
 
 local begin_time = nil  ---@type number|nil
 local end_time   = nil  ---@type number|nil
@@ -94,7 +133,7 @@ local function do_cut()
     mp.command_native_async({
         name = "subprocess",
         args = {
-            FFMPEG,
+            resolve_ffmpeg(),
             "-y",
             "-ss", tostring(begin_time),
             "-i", input_path,
@@ -110,18 +149,22 @@ local function do_cut()
         if result and result.status == 0 then
             mp.osd_message("Saved: " .. out_path, 4)
             msg.info("Slice saved -> " .. out_path)
+            begin_time = nil
+            end_time   = nil
         elseif not result or result.error_string == "init" then
+            -- ffmpeg not found: offer to install it. Keep the BEGIN/END marks so
+            -- the user can just press SAVE again once ffmpeg is in place.
+            _ffmpeg = nil  -- force a re-resolve next time (installer adds it)
+            launch_ffmpeg_installer()
             mp.osd_message(
-                ("Slicer: ffmpeg not found at '%s'. Set FFMPEG path at top of slicer.lua."):format(FFMPEG),
-                6)
-            msg.error("ffmpeg binary not found / could not be started. "
-                .. "Configure FFMPEG at the top of scripts/slicer.lua.")
+                "ffmpeg is needed to cut clips — an install window opened.\n"
+                .. "After it finishes, press SAVE clip again.", 6)
         else
             mp.osd_message("Slice FAILED — check console (²)", 4)
             if result and result.stderr then msg.error(result.stderr) end
+            begin_time = nil
+            end_time   = nil
         end
-        begin_time = nil
-        end_time   = nil
     end)
 end
 
