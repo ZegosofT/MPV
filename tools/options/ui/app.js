@@ -271,6 +271,7 @@ function buildControl(s) {
   if (s.type === 'presets') return presetManager();
   if (s.type === 'toggle') return toggleControl(s);
   if (s.type === 'number') return numberControl(s);
+  if (s.type === 'color') return colorControl(s);
   if (s.type === 'choice') return choiceControl(s);
   if (s.type === 'keywords') {
     const editor = chipEditor(s.value || [], async (list) => { await saveSetting(s.id, list); return list; });
@@ -334,6 +335,37 @@ function choiceControl(s) {
   });
   sel.addEventListener('change', () => { s.value = sel.value; saveSetting(s.id, sel.value); });
   return sel;
+}
+
+function colorControl(s) {
+  // mpv color is "#AARRGGBB" (alpha first) or "#RRGGBB".
+  const wrap = document.createElement('div'); wrap.className = 'color-wrap';
+  const v = String(s.value || '').replace(/^#/, '');
+  let aa = 'FF', rgb = 'FFFFFF';
+  if (v.length === 8) { aa = v.slice(0, 2); rgb = v.slice(2); }
+  else if (v.length === 6) { aa = 'FF'; rgb = v; }
+
+  const swatch = document.createElement('input');
+  swatch.type = 'color'; swatch.value = '#' + rgb;
+  const alpha = document.createElement('input');
+  alpha.type = 'range'; alpha.min = 0; alpha.max = 255;
+  alpha.value = parseInt(aa, 16) || 0; alpha.className = 'color-alpha';
+  const out = document.createElement('span'); out.className = 'color-hex';
+
+  const a2 = () => ('0' + Number(alpha.value).toString(16)).slice(-2).toUpperCase();
+  function compose() {
+    const h = '#' + a2() + swatch.value.replace(/^#/, '').toUpperCase();
+    out.textContent = h + '  ·  ' + Math.round(alpha.value / 255 * 100) + '%';
+    return h;
+  }
+  function save() { const h = compose(); s.value = h; saveSetting(s.id, h); }
+  swatch.addEventListener('input', compose);
+  swatch.addEventListener('change', save);
+  alpha.addEventListener('input', compose);
+  alpha.addEventListener('change', save);
+  compose();
+  wrap.append(swatch, alpha, out);
+  return wrap;
 }
 
 // ============================================================================

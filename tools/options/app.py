@@ -162,7 +162,10 @@ _window = None  # set in main(); used by reload_and_close()
 
 
 def _store_path(store):
-    # conf files live in script-opts/, json state files in the config root.
+    # conf files live in script-opts/, json state files in the config root,
+    # mpvconf is always the root mpv.conf.
+    if store["kind"] == "mpvconf":
+        return os.path.join(MPV_DIR, "mpv.conf")
     base = SCRIPT_OPTS if store["kind"] == "conf" else MPV_DIR
     return os.path.join(base, store["file"])
 
@@ -208,6 +211,77 @@ def _write_conf_value(path, key, raw):
         f.write(content)
 
 
+# --- mpv.conf adapter ---------------------------------------------------------
+# mpv.conf is split into [profile] blocks; the same key can appear in several
+# (a global default + per-profile overrides). We only ever read/write the GLOBAL
+# base: the head (before any [header]) plus [default] blocks. Conditional
+# profiles like [HDR-High-Quality] are deliberately left untouched.
+def _mpvconf_scope_indices(lines, profile=None):
+    # profile=None  -> global head (before any [header]) + [default] blocks.
+    # profile="Name" -> only that [Name] block(s).
+    target = (profile or "").strip().lower()
+    indices, in_scope = [], (profile is None)  # head is base only for default scope
+    for i, line in enumerate(lines):
+        m = re.match(r"^\s*\[(.+?)\]\s*$", line)
+        if m:
+            name = m.group(1).strip().lower()
+            in_scope = (name == "default") if profile is None else (name == target)
+            continue
+        if in_scope:
+            indices.append(i)
+    return indices
+
+
+def _read_mpvconf_value(path, key, profile=None):
+    text = _read_text(path)
+    if text is None:
+        return None
+    lines = text.splitlines()
+    for i in _mpvconf_scope_indices(lines, profile):
+        s = lines[i].strip()
+        if s.startswith("#") or "=" not in s:
+            continue
+        if s.split("=", 1)[0].strip() == key:
+            return s.split("=", 1)[1].strip()
+    return None
+
+
+def _write_mpvconf_value(path, key, raw, profile=None):
+    text = _read_text(path)
+    newline = "\r\n" if (text and "\r\n" in text) else "\n"
+    lines = text.splitlines() if text is not None else []
+    found = False
+    for i in _mpvconf_scope_indices(lines, profile):
+        s = lines[i].strip()
+        if s.startswith("#") or "=" not in s:
+            continue
+        if s.split("=", 1)[0].strip() == key:
+            lines[i] = key + "=" + raw
+            found = True
+            break
+    if not found:
+        at = len(lines)
+        if profile is None:
+            # Insert in the global head (before the first [profile]) = always applied.
+            at = next((j for j, l in enumerate(lines)
+                       if re.match(r"^\s*\[(.+?)\]\s*$", l)), len(lines))
+        else:
+            # Insert just after the target profile's header.
+            tgt = profile.strip().lower()
+            for j, l in enumerate(lines):
+                m = re.match(r"^\s*\[(.+?)\]\s*$", l)
+                if m and m.group(1).strip().lower() == tgt:
+                    at = j + 1
+                    break
+        lines.insert(at, key + "=" + raw)
+    _backup_file(path)
+    content = newline.join(lines)
+    if not content.endswith(newline):
+        content += newline
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(content)
+
+
 def _read_json_value(path, key):
     text = _read_text(path)
     if not text:
@@ -238,12 +312,16 @@ def _write_json_value(path, key, value):
 def _read_store(store):
     if store["kind"] == "conf":
         return _read_conf_value(_store_path(store), store["key"])
+    if store["kind"] == "mpvconf":
+        return _read_mpvconf_value(_store_path(store), store["key"], store.get("profile"))
     return _read_json_value(_store_path(store), store["key"])
 
 
 def _write_store(store, encoded):
     if store["kind"] == "conf":
         _write_conf_value(_store_path(store), store["key"], encoded)
+    elif store["kind"] == "mpvconf":
+        _write_mpvconf_value(_store_path(store), store["key"], encoded, store.get("profile"))
     else:
         _write_json_value(_store_path(store), store["key"], encoded)
 
@@ -281,6 +359,8 @@ def _decode(entry, raw):
         if entry.get("fmt") == "quoted":
             return re.findall(r'"([^"]*)"', raw)
         return [s.strip() for s in raw.split(";") if s.strip()]
+    if t in ("text", "choice", "color") and entry.get("quote"):
+        return raw.strip().strip('"')   # show the value without its surrounding quotes
     return raw  # text / choice
 
 
@@ -306,7 +386,34 @@ def _encode(entry, value):
         if entry.get("fmt") == "quoted":
             return ",".join('"%s"' % i for i in items)
         return ";".join(items)
+    if t in ("text", "choice", "color") and entry.get("quote"):
+        return '"%s"' % str(value).strip().strip('"')   # re-wrap in quotes
     return str(value)
+
+
+_fonts_cache = None
+
+
+def _list_fonts():
+    """Installed font family names (Windows), sorted, cached for the session."""
+    global _fonts_cache
+    if _fonts_cache is not None:
+        return _fonts_cache
+    fonts = []
+    try:
+        import subprocess
+        ps = ("Add-Type -AssemblyName System.Drawing;"
+              "(New-Object System.Drawing.Text.InstalledFontCollection).Families"
+              " | ForEach-Object { $_.Name }")
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                           capture_output=True, text=True, timeout=15,
+                           creationflags=0x08000000)
+        fonts = sorted({ln.strip() for ln in r.stdout.splitlines() if ln.strip()},
+                       key=str.lower)
+    except Exception:
+        fonts = []
+    _fonts_cache = fonts
+    return fonts
 
 
 _SKIP_CONF, _HIST_CONF = "skip_intro.conf", "history.conf"
@@ -397,6 +504,22 @@ SCHEMA += [
      "type": "choice",
      "options": ["auto", "100", "200", "300", "400", "600", "1000"],
      "store": {"kind": "conf", "file": _HDR_CONF, "key": "target_peak"}},
+    {"id": "hdr_brightness", "page": "Video Enhancement", "section": "HDR",
+     "label": "HDR brightness", "help": "-100 to 100. Applies to HDR video only (the [HDR-High-Quality] profile).",
+     "type": "number", "min": -100, "max": 100, "default": 0,
+     "store": {"kind": "mpvconf", "profile": "HDR-High-Quality", "key": "brightness"}},
+    {"id": "hdr_contrast", "page": "Video Enhancement", "section": "HDR",
+     "label": "HDR contrast", "help": "-100 to 100. HDR video only.",
+     "type": "number", "min": -100, "max": 100, "default": 0,
+     "store": {"kind": "mpvconf", "profile": "HDR-High-Quality", "key": "contrast"}},
+    {"id": "hdr_saturation", "page": "Video Enhancement", "section": "HDR",
+     "label": "HDR saturation", "help": "-100 to 100. HDR video only.",
+     "type": "number", "min": -100, "max": 100, "default": 0,
+     "store": {"kind": "mpvconf", "profile": "HDR-High-Quality", "key": "saturation"}},
+    {"id": "hdr_gamma", "page": "Video Enhancement", "section": "HDR",
+     "label": "HDR gamma", "help": "-100 to 100. HDR video only.",
+     "type": "number", "min": -100, "max": 100, "default": 0,
+     "store": {"kind": "mpvconf", "profile": "HDR-High-Quality", "key": "gamma"}},
 
     # ---- Preset selector: everything BELOW is what a preset changes ----
     {"id": "presets", "page": "Video Enhancement", "section": "Presets", "type": "presets",
@@ -460,6 +583,125 @@ SCHEMA += [
      "label": "Spatial audio", "help": "Virtual surround widening.",
      "type": "toggle", "boolfmt": "truefalse", "default": False,
      "store": {"kind": "conf", "file": _ANIME_CONF, "key": "spatial_active"}},
+    {"id": "alang", "page": "Audio", "section": "Language",
+     "label": "Preferred languages", "help": "Comma-separated codes, most-wanted first (e.g. jpn,ja,en,eng). Used only when no per-folder track memory exists for the video.",
+     "type": "text", "store": {"kind": "mpvconf", "key": "alang"}},
+]
+
+# ---- Video page : base image quality (mpv.conf [default] block) ----
+SCHEMA += [
+    {"id": "brightness", "page": "Video", "section": "Color",
+     "label": "Brightness", "help": "-100 to 100. 0 = unchanged.", "type": "number",
+     "min": -100, "max": 100, "default": 0, "store": {"kind": "mpvconf", "key": "brightness"}},
+    {"id": "contrast", "page": "Video", "section": "Color",
+     "label": "Contrast", "help": "-100 to 100. 0 = unchanged.", "type": "number",
+     "min": -100, "max": 100, "default": 0, "store": {"kind": "mpvconf", "key": "contrast"}},
+    {"id": "saturation", "page": "Video", "section": "Color",
+     "label": "Saturation", "help": "-100 to 100. 0 = neutral, -100 = grayscale.", "type": "number",
+     "min": -100, "max": 100, "default": 0, "store": {"kind": "mpvconf", "key": "saturation"}},
+    {"id": "gamma", "page": "Video", "section": "Color",
+     "label": "Gamma", "help": "-100 to 100. 0 = unchanged; lifts shadow detail.", "type": "number",
+     "min": -100, "max": 100, "default": 0, "store": {"kind": "mpvconf", "key": "gamma"}},
+
+    {"id": "interpolation", "page": "Video", "section": "Motion",
+     "label": "Interpolation", "help": "Frame interpolation (motion smoothing). Off = native cadence; on = smoother but 'soap-opera' look.",
+     "type": "toggle", "default": False, "store": {"kind": "mpvconf", "key": "interpolation"}},
+    {"id": "tscale", "page": "Video", "section": "Motion",
+     "label": "Interpolation filter", "help": "Filter used to blend frames (only active when Interpolation is on).",
+     "type": "choice", "options": ["box", "linear", "catmull_rom", "mitchell", "bicubic", "oversample"],
+     "default": "box", "store": {"kind": "mpvconf", "key": "tscale"}},
+
+    {"id": "deinterlace", "page": "Video", "section": "Deinterlacing",
+     "label": "Deinterlace", "help": "Auto only kicks in for genuinely interlaced video (recommended). Forcing it on hurts normal progressive video.",
+     "type": "choice", "options": [{"v": "auto", "l": "Auto (recommended)"}, {"v": "yes", "l": "On"}, {"v": "no", "l": "Off"}],
+     "default": "auto", "store": {"kind": "mpvconf", "key": "deinterlace"}},
+
+    {"id": "ss_format", "page": "Video", "section": "Screenshots",
+     "label": "Format", "help": "Image format for screenshots (Shift+F5).",
+     "type": "choice", "options": ["png", "jpg", "webp"], "default": "png",
+     "store": {"kind": "mpvconf", "key": "screenshot-format"}},
+    {"id": "ss_hidepth", "page": "Video", "section": "Screenshots",
+     "label": "High bit depth", "help": "Capture in higher precision (PNG/WebP). Off = 8-bit.",
+     "type": "toggle", "default": True, "store": {"kind": "mpvconf", "key": "screenshot-high-bit-depth"}},
+    {"id": "ss_jpeg_q", "page": "Video", "section": "Screenshots",
+     "label": "JPEG quality", "help": "0-100. Used only for the JPG format.", "type": "number",
+     "min": 0, "max": 100, "default": 95, "store": {"kind": "mpvconf", "key": "screenshot-jpeg-quality"}},
+    {"id": "ss_png_comp", "page": "Video", "section": "Screenshots",
+     "label": "PNG compression", "help": "0 (fast, big) to 9 (slow, small). PNG only.", "type": "number",
+     "min": 0, "max": 9, "default": 7, "store": {"kind": "mpvconf", "key": "screenshot-png-compression"}},
+]
+
+# ---- Subtitles page : persistent subtitle defaults (mpv.conf [default] block) ----
+SCHEMA += [
+    {"id": "sub_force_style", "page": "Subtitles", "section": "Style",
+     "label": "Apply my style to anime (ASS) subs",
+     "help": "ON: force the font, size & colors below onto every subtitle, including anime/ASS fansubs. OFF: anime keeps its own styling (your settings still apply to plain text subs). Reload to take effect.",
+     "type": "toggle", "default": True, "store": {"kind": "conf", "file": "sub_scale.conf", "key": "force_style"}},
+
+    {"id": "sub_font_size", "page": "Subtitles", "section": "Appearance",
+     "label": "Subtitle size", "help": "Default subtitle font size.", "type": "number",
+     "min": 10, "max": 100, "default": 36, "store": {"kind": "mpvconf", "key": "sub-font-size"}},
+    {"id": "sub_font", "page": "Subtitles", "section": "Appearance",
+     "label": "Font", "help": "Subtitle font — pick from the fonts installed on this PC.",
+     "type": "choice", "options_source": "fonts", "quote": True,
+     "store": {"kind": "mpvconf", "key": "sub-font"}},
+    {"id": "sub_shadow", "page": "Subtitles", "section": "Appearance",
+     "label": "Shadow distance", "help": "Drop-shadow offset behind the text. 0 = none.", "type": "number",
+     "min": 0, "max": 10, "default": 3, "store": {"kind": "mpvconf", "key": "sub-shadow-offset"}},
+
+    {"id": "sub_color", "page": "Subtitles", "section": "Colors",
+     "label": "Text color", "help": "Subtitle fill color and opacity.",
+     "type": "color", "quote": True, "store": {"kind": "mpvconf", "key": "sub-color"}},
+    {"id": "sub_border_color", "page": "Subtitles", "section": "Colors",
+     "label": "Outline color", "help": "Border / outline around the text.",
+     "type": "color", "quote": True, "store": {"kind": "mpvconf", "key": "sub-border-color"}},
+    {"id": "sub_shadow_color", "page": "Subtitles", "section": "Colors",
+     "label": "Shadow color", "help": "Drop shadow behind the text.",
+     "type": "color", "quote": True, "store": {"kind": "mpvconf", "key": "sub-shadow-color"}},
+
+    {"id": "sub_pos", "page": "Subtitles", "section": "Position",
+     "label": "Vertical position", "help": "0 = top, 100 = bottom edge, up to 150 (lower = off-screen).",
+     "type": "number", "min": 0, "max": 150, "default": 100, "store": {"kind": "mpvconf", "key": "sub-pos"}},
+    {"id": "sub_use_margins", "page": "Subtitles", "section": "Position",
+     "label": "Use black bars", "help": "Allow subtitles to sit in the black bars below the video.",
+     "type": "toggle", "default": True, "store": {"kind": "mpvconf", "key": "sub-use-margins"}},
+    {"id": "sub_scale_window", "page": "Subtitles", "section": "Position",
+     "label": "Scale with window", "help": "Size subtitles relative to the window, not the video resolution.",
+     "type": "toggle", "default": True, "store": {"kind": "mpvconf", "key": "sub-scale-with-window"}},
+
+    {"id": "sub_auto", "page": "Subtitles", "section": "Behavior",
+     "label": "Auto-load external subs", "help": "Pick up matching .srt/.ass files next to the video.",
+     "type": "choice", "options": ["no", "exact", "fuzzy", "all"], "default": "fuzzy",
+     "store": {"kind": "mpvconf", "key": "sub-auto"}},
+    {"id": "blend_subtitles", "page": "Subtitles", "section": "Behavior",
+     "label": "Blend into video", "help": "Render subs into the frame (affects screenshots/scaling). 'video' = at source resolution.",
+     "type": "choice", "options": ["yes", "video", "no"], "default": "no",
+     "store": {"kind": "mpvconf", "key": "blend-subtitles"}},
+    {"id": "slang", "page": "Subtitles", "section": "Behavior",
+     "label": "Preferred languages", "help": "Comma-separated codes, most-wanted first (e.g. en,eng,fre).",
+     "type": "text", "store": {"kind": "mpvconf", "key": "slang"}},
+]
+
+# ---- Interface page (uosc.conf) ----
+SCHEMA += [
+    {"id": "uosc_autohide", "page": "Interface", "section": "General",
+     "label": "Auto-hide the UI", "help": "Hide the controls and timeline when the mouse is idle.",
+     "type": "toggle", "default": True, "store": {"kind": "conf", "file": "uosc.conf", "key": "autohide"}},
+    {"id": "uosc_radius", "page": "Interface", "section": "General",
+     "label": "Corner radius", "help": "Roundness of buttons, menus and bars (px).", "type": "number",
+     "min": 0, "max": 30, "default": 8, "store": {"kind": "conf", "file": "uosc.conf", "key": "border_radius"}},
+
+    {"id": "uosc_topbar_title", "page": "Interface", "section": "General",
+     "label": "Show title", "help": "Show the current file's title in the top bar.",
+     "type": "toggle", "default": True,
+     "store": {"kind": "conf", "file": "uosc.conf", "key": "top_bar_title"}},
+
+    {"id": "uosc_timeline_style", "page": "Interface", "section": "Timeline",
+     "label": "Timeline style", "type": "choice", "options": ["line", "bar"], "default": "line",
+     "store": {"kind": "conf", "file": "uosc.conf", "key": "timeline_style"}},
+    {"id": "uosc_timeline_size", "page": "Interface", "section": "Timeline",
+     "label": "Timeline height", "help": "Height in pixels.", "type": "number",
+     "min": 10, "max": 100, "default": 30, "store": {"kind": "conf", "file": "uosc.conf", "key": "timeline_size"}},
 ]
 
 # ---- About & Updates page (a single custom panel, rendered specially) ----
@@ -774,13 +1016,19 @@ class Api:
     def get_settings(self):
         out = []
         for e in SCHEMA:
+            value = (_decode(e, _read_store(e["store"])) if "store" in e else None)
+            options = e.get("options")
+            if e.get("options_source") == "fonts":
+                options = _list_fonts()
+                if value and value not in options:
+                    options = [value] + options   # keep the current font selectable
             out.append({
                 "id": e["id"], "page": e["page"], "section": e["section"],
                 "label": e["label"], "help": e.get("help", ""),
-                "type": e["type"], "options": e.get("options"),
+                "type": e["type"], "options": options,
                 "min": e.get("min"), "max": e.get("max"), "step": e.get("step"),
                 "browse": e.get("browse"),
-                "value": (_decode(e, _read_store(e["store"])) if "store" in e else None),
+                "value": value,
             })
         pages = [p for p in PAGE_ORDER
                  if p in _ALWAYS_SHOW_PAGES or any(e["page"] == p for e in SCHEMA)]
